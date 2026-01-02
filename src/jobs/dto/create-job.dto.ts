@@ -26,8 +26,4 @@ export class CreateJobDto {
   @IsInt()
   @Min(0)
   olPassRequired?: number;
-
-  @IsOptional()
-  @IsString()
-  imagePath?: string;
 }

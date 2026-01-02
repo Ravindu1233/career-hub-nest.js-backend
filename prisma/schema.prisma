@@ -59,6 +59,9 @@ model User {
 
   image Bytes? @map("image")
 
+  profilePic String? @map("profile_pic") @db.VarChar(255)
+
+
   applications Application[]
 
   @@map("user")
@@ -78,7 +81,10 @@ model Company {
   email       String  @unique @db.VarChar(255)
 
   // longblob -> Bytes
-  image Bytes? @map("image")
+  image Bytes? @map("image") 
+
+  profilePic String? @map("profile_pic") @db.VarChar(255)
+
 
   industry String? @db.VarChar(255)
   mobile   String? @db.VarChar(255)

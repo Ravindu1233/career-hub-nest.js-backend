@@ -28,8 +28,4 @@ export class UpdateJobDto {
   @IsInt()
   @Min(0)
   olPassRequired?: number;
-
-  @IsOptional()
-  @IsString()
-  imagePath?: string;
 }

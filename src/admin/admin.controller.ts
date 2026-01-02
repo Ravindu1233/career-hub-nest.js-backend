@@ -19,6 +19,7 @@ export class AdminController {
         firstName: true,
         lastName: true,
         mobile: true,
+        profilePic: true,
       },
       orderBy: { userId: 'desc' },
     });
@@ -27,7 +28,13 @@ export class AdminController {
   @Get('companies')
   companies() {
     return this.prisma.company.findMany({
-      select: { companyId: true, email: true, companyName: true, mobile: true },
+      select: {
+        companyId: true,
+        email: true,
+        companyName: true,
+        mobile: true,
+        profilePic: true,
+      },
       orderBy: { companyId: 'desc' },
     });
   }
