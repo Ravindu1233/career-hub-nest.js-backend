@@ -1,14 +1,102 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  
+}
+
+enum Role {
+  USER
+  COMPANY
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  BLOCKED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  role         Role
+  firstName    String
+  lastName     String
+  mobile       String?
+  address      String?
+  dob          DateTime?
+  status       AccountStatus @default(ACTIVE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  userProfile     UserProfile?
+  companyProfile  CompanyProfile?
+  adminProfile    AdminProfile?
+
+  jobs            Job[]
+  applications    Application[]
+}
+
+model UserProfile {
+  id            String @id @default(uuid())
+  userId        String @unique
+  certification String?
+  olPassCount   Int?
+  imagePath     String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model CompanyProfile {
+  id          String @id @default(uuid())
+  userId      String @unique
+  companyName String
+  industry    String?
+  description String?
+  websiteUrl  String?
+  imagePath   String?
+  verified    Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model AdminProfile {
+  id        String @id @default(uuid())
+  userId    String @unique
+  imagePath String?
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Job {
+  id             String @id @default(uuid())
+  companyUserId  String
+  jobTitle       String
+  jobDescription String
+  qualification  String?
+  location       String?
+  workingHours   Int?
+  olPassRequired Int?
+  imagePath      String?
+  jobDate        DateTime @default(now())
+
+  company      User @relation(fields: [companyUserId], references: [id])
+  applications Application[]
+}
+
+model Application {
+  id        String @id @default(uuid())
+  jobId     String
+  userId    String
+  cvPath    String?
+  status    String @default("APPLIED")
+  createdAt DateTime @default(now())
+
+  job  Job  @relation(fields: [jobId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([jobId, userId])
 }
