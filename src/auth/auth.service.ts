@@ -59,8 +59,23 @@ export class AuthService {
         lastName: dto.lastName ?? null,
         mobile: dto.mobile ?? null,
         address: dto.address ?? null,
+
+        // ✅ NEW
+        bio: dto.bio ?? null,
+        skills: dto.skills ?? [],
+        schools: dto.schools ?? null,
       },
-      select: { userId: true, email: true, firstName: true, lastName: true },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        mobile: true,
+        address: true,
+        bio: true,
+        skills: true,
+        schools: true,
+      },
     });
 
     const token = this.signToken({ sub: user.userId, type: 'USER' });

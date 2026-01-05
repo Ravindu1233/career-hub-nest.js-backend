@@ -1,15 +1,6 @@
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MinLength,
-  IsArray,
-} from 'class-validator';
+import { IsOptional, IsString, IsArray, IsInt } from 'class-validator';
 
-export class UserRegisterDto {
-  @IsEmail() email: string;
-  @IsString() @MinLength(6) password: string;
-
+export class UpdateUserDto {
   @IsOptional() @IsString() firstName?: string;
   @IsOptional() @IsString() lastName?: string;
   @IsOptional() @IsString() mobile?: string;
@@ -26,4 +17,13 @@ export class UserRegisterDto {
   @IsOptional()
   @IsString()
   schools?: string;
+
+  // keep if you still use
+  @IsOptional()
+  @IsString()
+  certification?: string;
+
+  @IsOptional()
+  @IsInt()
+  olPassCount?: number;
 }

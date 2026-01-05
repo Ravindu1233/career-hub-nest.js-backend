@@ -41,7 +41,7 @@ model User {
   userId Int @id @default(autoincrement()) @map("user_id")
 
   address       String? @db.VarChar(255)
-  certification String? @db.VarChar(255)
+  certification String? @db.VarChar(255) // you can keep or delete later
 
   dob DateTime? @db.Timestamp(6)
 
@@ -54,6 +54,11 @@ model User {
 
   olPassCount Int? @map("ol_pass_count")
 
+  // ✅ NEW FIELDS
+  bio     String?  @db.VarChar(1000)
+  skills  String[] @default([])   // Postgres text[]
+  schools String?  @db.VarChar(500)
+
   // store hashed password, but keep DB column name "password"
   passwordHash String @map("password") @db.VarChar(255)
 
@@ -61,11 +66,11 @@ model User {
 
   profilePic String? @map("profile_pic") @db.VarChar(255)
 
-
   applications Application[]
 
   @@map("user")
 }
+
 
 // =====================
 // Table: company  (separate entity, not a Role)
