@@ -26,4 +26,10 @@ export class UserRegisterDto {
   @IsOptional()
   @IsString()
   schools?: string;
+
+  // Updated certification to an array of strings
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  certifications?: string[]; // Multiple certifications now
 }

@@ -28,7 +28,7 @@ export class UsersController {
         bio: true,
         skills: true,
         schools: true,
-        certification: true,
+        certifications: true, // Corrected to 'certifications' (plural)
         dob: true,
         olPassCount: true,
         profilePic: true,
@@ -45,23 +45,23 @@ export class UsersController {
       return null;
     }
 
-    // Build update data object with proper handling for all fields
     const updateData: any = {};
 
-    // Handle regular string fields
     if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
     if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
     if (dto.mobile !== undefined) updateData.mobile = dto.mobile;
     if (dto.address !== undefined) updateData.address = dto.address;
     if (dto.bio !== undefined) updateData.bio = dto.bio;
     if (dto.schools !== undefined) updateData.schools = dto.schools;
-    if (dto.certification !== undefined)
-      updateData.certification = dto.certification;
+    if (dto.certifications !== undefined)
+      updateData.certifications = dto.certifications;
     if (dto.olPassCount !== undefined) updateData.olPassCount = dto.olPassCount;
+    if (dto.skills !== undefined) updateData.skills = dto.skills;
 
-    // ✅ CRITICAL FIX: Always update skills array if provided
-    if (dto.skills !== undefined) {
-      updateData.skills = dto.skills;
+    // ✅ CHANGE THIS - Convert date string to DateTime
+    if (dto.dob !== undefined) {
+      // Convert "2026-01-08" to ISO DateTime "2026-01-08T00:00:00.000Z"
+      updateData.dob = new Date(dto.dob);
     }
 
     return this.prisma.user.update({
@@ -77,7 +77,7 @@ export class UsersController {
         bio: true,
         skills: true,
         schools: true,
-        certification: true,
+        certifications: true,
         dob: true,
         olPassCount: true,
         profilePic: true,

@@ -64,6 +64,7 @@ export class AuthService {
         bio: dto.bio ?? null,
         skills: dto.skills ?? [],
         schools: dto.schools ?? null,
+        certifications: dto.certifications ?? [], // Store multiple certifications here
       },
       select: {
         userId: true,
@@ -75,6 +76,7 @@ export class AuthService {
         bio: true,
         skills: true,
         schools: true,
+        certifications: true, // Include certifications in the selection
       },
     });
 

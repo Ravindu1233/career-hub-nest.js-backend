@@ -41,8 +41,7 @@ model User {
   userId Int @id @default(autoincrement()) @map("user_id")
 
   address       String? @db.VarChar(255)
-  certification String? @db.VarChar(255) // you can keep or delete later
-
+  certifications String[] @default([]) @db.Text // Changed to array of strings for multiple certifications
   dob DateTime? @db.Timestamp(6)
 
   email String @unique @db.VarChar(255)
