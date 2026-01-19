@@ -18,7 +18,7 @@ export class AdminController {
         email: true,
         firstName: true,
         lastName: true,
-        mobile: true,
+        mobile: true, // ✅ FIX (User model has mobile)
         profilePic: true,
       },
       orderBy: { userId: 'desc' },
@@ -32,7 +32,7 @@ export class AdminController {
         companyId: true,
         email: true,
         companyName: true,
-        mobile: true,
+        phone: true, // ✅ correct (Company model has phone)
         profilePic: true,
       },
       orderBy: { companyId: 'desc' },

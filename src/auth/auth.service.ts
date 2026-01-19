@@ -111,13 +111,25 @@ export class AuthService {
         email: dto.email,
         passwordHash: hash,
         companyName: dto.companyName,
-        mobile: dto.mobile ?? null,
+
+        phone: dto.phone ?? null, // ✅ FIX (Company model has phone, not mobile)
+
         address: dto.address ?? null,
         industry: dto.industry ?? null,
         description: dto.description ?? null,
         url: dto.url ?? null,
+        location: dto.location ?? null,
+        companySize: dto.companySize ?? null,
+        benefitsAndPerks: dto.benefitsAndPerks ?? null,
+        // founded: dto.founded ? new Date(dto.founded) : null, // if you add it to DTO
+        profilePic: dto.profilePic ?? null,
       },
-      select: { companyId: true, email: true, companyName: true },
+      select: {
+        companyId: true,
+        email: true,
+        companyName: true,
+        phone: true, // ✅ include if you want
+      },
     });
 
     const token = this.signToken({ sub: company.companyId, type: 'COMPANY' });
