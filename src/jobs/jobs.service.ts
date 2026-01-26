@@ -41,8 +41,13 @@ export class JobsService {
         location: dto.location,
         salaryRange: dto.salaryRange,
         jobDescription: dto.jobDescription,
+
+        // ✅ new fields
+        responsibilities: dto.responsibilities,
+        requiredSkills: dto.requiredSkills,
         requirements: dto.requirements,
-        // jobDate is default(now()) in schema
+
+        deadline: dto.deadline ? new Date(dto.deadline) : null,
       },
     });
   }
@@ -61,7 +66,12 @@ export class JobsService {
         location: dto.location ?? undefined,
         salaryRange: dto.salaryRange ?? undefined,
         jobDescription: dto.jobDescription ?? undefined,
+
+        responsibilities: dto.responsibilities ?? undefined,
+        requiredSkills: dto.requiredSkills ?? undefined,
         requirements: dto.requirements ?? undefined,
+
+        deadline: dto.deadline ? new Date(dto.deadline) : undefined,
       },
     });
   }

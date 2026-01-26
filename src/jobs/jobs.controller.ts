@@ -30,20 +30,19 @@ export class JobsController {
     return this.jobs.listAll();
   }
 
-  // ✅ PUBLIC: jobs by company id
-  // GET /jobs/company/:companyId
-  // ⚠️ MUST be BEFORE @Get(':id')
-  @Get('company/:companyId')
-  listByCompany(@Param('companyId', ParseIntPipe) companyId: number) {
-    return this.jobs.listCompanyJobs(companyId);
-  }
-
+  // ✅ MUST be BEFORE /company/:companyId
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('COMPANY')
   @Get('company/me')
   companyJobs(@Req() req: any) {
     const user = req.user as JwtPayload;
     return this.jobs.listCompanyJobs(user.sub);
+  }
+
+  // ✅ PUBLIC
+  @Get('company/:companyId')
+  listByCompany(@Param('companyId', ParseIntPipe) companyId: number) {
+    return this.jobs.listCompanyJobs(companyId);
   }
 
   @Get(':id')

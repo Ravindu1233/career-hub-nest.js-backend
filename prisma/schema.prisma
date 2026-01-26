@@ -101,15 +101,21 @@ model Company {
 model Job {
   id               String   @id @default(uuid())
   companyId        Int      @map("company_id")
-  jobTitle         String   // Added Job Title
-  jobType          String   // Added Job Type
-  location         String   // Added Location
-  salaryRange      String   // Added Salary Range
-  jobDescription   String   // Added Job Description
-  requirements     String   // Added Requirements
-  jobDate          DateTime @default(now())
+  jobTitle         String
+  jobType          String
+  location         String
+  salaryRange      String
+  jobDescription   String
 
-  company          Company  @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  // ✅ changed from single string to arrays + deadline
+  responsibilities String[] @default([]) @db.Text
+  requiredSkills   String[] @default([]) @db.Text
+  requirements     String   // keep as extra text if you want (optional UI section)
+
+  deadline         DateTime? @db.Timestamp(6)  // ✅ NEW
+  jobDate          DateTime  @default(now())
+
+  company          Company   @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
   applications     Application[]
 
   @@index([companyId])
