@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsOptional, IsString, MinLength } from 'class-validator';
 
 export class UpdateJobDto {
   @IsOptional()
@@ -8,24 +8,26 @@ export class UpdateJobDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(2)
+  jobType?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  salaryRange?: string;
+
+  @IsOptional()
+  @IsString()
   @MinLength(5)
   jobDescription?: string;
 
   @IsOptional()
   @IsString()
-  qualification?: string;
-
-  @IsOptional()
-  @IsString()
-  location?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  workingHours?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  olPassRequired?: number;
+  @MinLength(5)
+  requirements?: string;
 }

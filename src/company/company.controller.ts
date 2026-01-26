@@ -8,6 +8,9 @@ import {
   Query,
   Param,
   ParseIntPipe,
+  ForbiddenException,
+  UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,7 +30,7 @@ export class CompanyController {
     @Query('industry') industry?: string,
     @Query('size') size?: string,
   ) {
-    return this.prisma.company.findMany({
+    const companies = await this.prisma.company.findMany({
       where: {
         AND: [
           q
@@ -52,49 +55,41 @@ export class CompanyController {
         url: true,
         profilePic: true,
         founded: true,
+        _count: { select: { jobs: true } },
       },
       orderBy: { companyId: 'desc' },
     });
-  }
 
-  /**
-   * ✅ PUBLIC: get single company by id
-   * GET /companies/:id
-   */
-  @Get(':id')
-  async getById(@Param('id', ParseIntPipe) id: number) {
-    return this.prisma.company.findUnique({
-      where: { companyId: id },
-      select: {
-        companyId: true,
-        companyName: true,
-        industry: true,
-        location: true,
-        companySize: true,
-        description: true,
-        url: true,
-        profilePic: true,
-        founded: true,
-        benefitsAndPerks: true,
-        phone: true,
-        address: true,
-        email: true,
-      },
-    });
+    // return openJobs for frontend
+    return companies.map((c) => ({
+      companyId: c.companyId,
+      companyName: c.companyName,
+      industry: c.industry,
+      location: c.location,
+      companySize: c.companySize,
+      description: c.description,
+      url: c.url,
+      profilePic: c.profilePic,
+      founded: c.founded,
+      openJobs: c._count.jobs, // ✅ what frontend needs
+    }));
   }
 
   /**
    * ✅ AUTH (COMPANY ONLY): get my company profile
    * GET /companies/me
+   *
+   * IMPORTANT: Must come BEFORE @Get(':id')
    */
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async me(@Req() req: any) {
     const payload = req.user;
 
-    if (!payload?.sub || payload?.type !== 'COMPANY') {
-      return null; // or throw new ForbiddenException()
-    }
+    if (!payload) throw new UnauthorizedException('Missing auth payload');
+    if (!payload.sub) throw new UnauthorizedException('Invalid token payload');
+    if (payload.type !== 'COMPANY')
+      throw new ForbiddenException('Only COMPANY can access this route');
 
     return this.prisma.company.findUnique({
       where: { companyId: payload.sub },
@@ -119,15 +114,18 @@ export class CompanyController {
   /**
    * ✅ AUTH (COMPANY ONLY): update my company profile
    * PATCH /companies/me
+   *
+   * IMPORTANT: Must come BEFORE @Get(':id')
    */
   @UseGuards(JwtAuthGuard)
   @Patch('me')
   async updateMe(@Req() req: any, @Body() dto: UpdateCompanyDto) {
     const payload = req.user;
 
-    if (!payload?.sub || payload?.type !== 'COMPANY') {
-      return null;
-    }
+    if (!payload) throw new UnauthorizedException('Missing auth payload');
+    if (!payload.sub) throw new UnauthorizedException('Invalid token payload');
+    if (payload.type !== 'COMPANY')
+      throw new ForbiddenException('Only COMPANY can update this route');
 
     const updateData: any = {};
 
@@ -139,10 +137,18 @@ export class CompanyController {
     if (dto.url !== undefined) updateData.url = dto.url;
     if (dto.location !== undefined) updateData.location = dto.location;
     if (dto.companySize !== undefined) updateData.companySize = dto.companySize;
-    if (dto.founded !== undefined) updateData.founded = new Date(dto.founded);
     if (dto.benefitsAndPerks !== undefined)
       updateData.benefitsAndPerks = dto.benefitsAndPerks;
     if (dto.profilePic !== undefined) updateData.profilePic = dto.profilePic;
+
+    // founded can come as ISO string "YYYY-MM-DD" or full ISO
+    if (dto.founded !== undefined) {
+      const d = new Date(dto.founded);
+      if (Number.isNaN(d.getTime())) {
+        throw new BadRequestException('Invalid founded date');
+      }
+      updateData.founded = d;
+    }
 
     return this.prisma.company.update({
       where: { companyId: payload.sub },
@@ -161,6 +167,34 @@ export class CompanyController {
         founded: true,
         benefitsAndPerks: true,
         profilePic: true,
+      },
+    });
+  }
+
+  /**
+   * ✅ PUBLIC: get single company by id
+   * GET /companies/:id
+   *
+   * NOTE: must be AFTER /me routes
+   */
+  @Get(':id')
+  async getById(@Param('id', ParseIntPipe) id: number) {
+    return this.prisma.company.findUnique({
+      where: { companyId: id },
+      select: {
+        companyId: true,
+        companyName: true,
+        industry: true,
+        location: true,
+        companySize: true,
+        description: true,
+        url: true,
+        profilePic: true,
+        founded: true,
+        benefitsAndPerks: true,
+        phone: true,
+        address: true,
+        email: true,
       },
     });
   }
