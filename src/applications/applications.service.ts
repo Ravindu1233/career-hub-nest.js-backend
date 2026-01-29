@@ -5,63 +5,93 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateApplicationDto } from './dto/create-application.dto';
+import { UpdateApplicationDto } from './dto/update-application.dto';
 
 @Injectable()
 export class ApplicationsService {
   constructor(private prisma: PrismaService) {}
 
-  async apply(userId: number, jobId: string, cvPath?: string) {
+  // ✅ Create application (User applies to job)
+  async create(
+    userId: number,
+    jobId: string,
+    dto: CreateApplicationDto,
+    cvPath: string,
+  ) {
+    // Check if job exists
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
 
-    try {
-      return await this.prisma.application.create({
-        data: {
-          jobId,
-          userId,
-          cvPath: cvPath ?? null,
-        },
-      });
-    } catch (e: any) {
-      // unique constraint (jobId + userId)
-      throw new BadRequestException('You already applied to this job');
+    // Check if deadline has passed
+    if (job.deadline && new Date() > job.deadline) {
+      throw new BadRequestException('Application deadline has passed');
     }
+
+    // Check if user already applied
+    const existing = await this.prisma.application.findUnique({
+      where: { jobId_userId: { jobId, userId } },
+    });
+
+    if (existing) {
+      throw new BadRequestException('You have already applied to this job');
+    }
+
+    return this.prisma.application.create({
+      data: {
+        jobId,
+        userId,
+        cvPath,
+        coverLetter: dto.coverLetter,
+      },
+      include: {
+        job: {
+          select: {
+            jobTitle: true,
+            company: { select: { companyName: true } },
+          },
+        },
+      },
+    });
   }
 
-  listMyApplications(userId: number) {
+  // ✅ Get user's applications
+  async getUserApplications(userId: number) {
     return this.prisma.application.findMany({
       where: { userId },
       include: {
-        job: { include: { company: { select: { companyName: true } } } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async listApplicationsForCompany(companyId: number) {
-    return this.prisma.application.findMany({
-      where: { job: { companyId } },
-      include: {
-        user: {
+        job: {
           select: {
-            userId: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            mobile: true,
+            id: true,
+            jobTitle: true,
+            jobType: true,
+            location: true,
+            salaryRange: true,
+            deadline: true,
+            company: {
+              select: {
+                companyId: true,
+                companyName: true,
+                profilePic: true,
+              },
+            },
           },
         },
-        job: { select: { id: true, jobTitle: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async companyApplicationsForJob(companyId: number, jobId: string) {
-    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+  // ✅ Get applications for a specific job (Company only)
+  async getJobApplications(companyId: number, jobId: string) {
+    const job = await this.prisma.job.findUnique({
+      where: { id: jobId },
+    });
+
     if (!job) throw new NotFoundException('Job not found');
-    if (job.companyId !== companyId)
-      throw new ForbiddenException('Not your job');
+    if (job.companyId !== companyId) {
+      throw new ForbiddenException('Not authorized to view these applications');
+    }
 
     return this.prisma.application.findMany({
       where: { jobId },
@@ -69,14 +99,148 @@ export class ApplicationsService {
         user: {
           select: {
             userId: true,
-            email: true,
             firstName: true,
             lastName: true,
+            email: true,
             mobile: true,
+            profilePic: true,
+            bio: true,
+            skills: true,
+            schools: true,
+            certifications: true,
+            olPassCount: true,
           },
         },
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ✅ Get all applications for company's jobs
+  async getCompanyApplications(companyId: number) {
+    return this.prisma.application.findMany({
+      where: {
+        job: { companyId },
+      },
+      include: {
+        job: {
+          select: {
+            id: true,
+            jobTitle: true,
+            jobType: true,
+          },
+        },
+        user: {
+          select: {
+            userId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            profilePic: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ✅ Get single application by ID
+  async getById(userId: number, accountType: string, applicationId: string) {
+    const application = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+      include: {
+        job: {
+          include: {
+            company: {
+              select: {
+                companyId: true,
+                companyName: true,
+                profilePic: true,
+              },
+            },
+          },
+        },
+        user: {
+          select: {
+            userId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            mobile: true,
+            profilePic: true,
+            bio: true,
+            skills: true,
+            schools: true,
+            certifications: true,
+            olPassCount: true,
+          },
+        },
+      },
+    });
+
+    if (!application) throw new NotFoundException('Application not found');
+
+    // Authorization check
+    if (accountType === 'USER' && application.userId !== userId) {
+      throw new ForbiddenException('Not authorized to view this application');
+    }
+
+    if (accountType === 'COMPANY' && application.job.companyId !== userId) {
+      throw new ForbiddenException('Not authorized to view this application');
+    }
+
+    return application;
+  }
+
+  // ✅ Update application status (Company only)
+  async updateStatus(
+    companyId: number,
+    applicationId: string,
+    dto: UpdateApplicationDto,
+  ) {
+    const application = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+      include: { job: true },
+    });
+
+    if (!application) throw new NotFoundException('Application not found');
+
+    if (application.job.companyId !== companyId) {
+      throw new ForbiddenException('Not authorized to update this application');
+    }
+
+    return this.prisma.application.update({
+      where: { id: applicationId },
+      data: { status: dto.status },
+      include: {
+        user: {
+          select: {
+            userId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
+
+  // ✅ Withdraw application (User only)
+  async withdraw(userId: number, applicationId: string) {
+    const application = await this.prisma.application.findUnique({
+      where: { id: applicationId },
+    });
+
+    if (!application) throw new NotFoundException('Application not found');
+
+    if (application.userId !== userId) {
+      throw new ForbiddenException(
+        'Not authorized to withdraw this application',
+      );
+    }
+
+    return this.prisma.application.delete({
+      where: { id: applicationId },
     });
   }
 }

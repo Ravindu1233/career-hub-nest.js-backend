@@ -125,19 +125,17 @@ model Job {
 // Application belongs to Job + User
 // =====================
 model Application {
-  id String @id @default(uuid())
+  id         String   @id @default(uuid())
+  jobId      String
+  userId     Int      @map("user_id")
+  cvPath     String?  // Path to the uploaded CV
+  status     String   @default("APPLIED")
+  coverLetter String? // Store the cover letter here
+  createdAt  DateTime @default(now())
 
-  jobId  String
-  userId Int    @map("user_id")
-
-  cvPath    String?
-  status    String   @default("APPLIED")
-  createdAt DateTime @default(now())
-
-  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
 
   @@unique([jobId, userId])
-  @@index([userId])
-  @@index([jobId])
 }
+

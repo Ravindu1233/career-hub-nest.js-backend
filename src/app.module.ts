@@ -9,6 +9,7 @@ import { AdminModule } from './admin/admin.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { CompanyModule } from './company/company.module'; // ✅ add this
+import { ApplicationsModule } from './applications/applications.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { CompanyModule } from './company/company.module'; // ✅ add this
     AdminModule,
     UsersModule,
     CompanyModule, // ✅ add this
+    ApplicationsModule,
   ],
 })
 export class AppModule {}
