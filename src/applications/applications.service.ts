@@ -12,7 +12,6 @@ import { UpdateApplicationDto } from './dto/update-application.dto';
 export class ApplicationsService {
   constructor(private prisma: PrismaService) {}
 
-  // ✅ Create application (User applies to job)
   async create(
     userId: number,
     jobId: string,
@@ -43,6 +42,7 @@ export class ApplicationsService {
         userId,
         cvPath,
         coverLetter: dto.coverLetter,
+        status: 'PENDING', // Default status is PENDING
       },
       include: {
         job: {
@@ -192,12 +192,12 @@ export class ApplicationsService {
     return application;
   }
 
-  // ✅ Update application status (Company only)
   async updateStatus(
     companyId: number,
-    applicationId: string,
+    applicationId: string, // ✅ Remove '| undefined' - controller guarantees it exists
     dto: UpdateApplicationDto,
   ) {
+    // Remove the undefined check since it's now guaranteed to be a string
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },
       include: { job: true },
@@ -205,8 +205,22 @@ export class ApplicationsService {
 
     if (!application) throw new NotFoundException('Application not found');
 
+    // Ensure the company owns the job
     if (application.job.companyId !== companyId) {
       throw new ForbiddenException('Not authorized to update this application');
+    }
+
+    // Check if the new status is one of the allowed ones
+    const validStatuses = [
+      'PENDING',
+      'REJECTED',
+      'INTERVIEW_SCHEDULED',
+      'SHORTLISTED',
+    ];
+    if (!validStatuses.includes(dto.status)) {
+      throw new BadRequestException(
+        `Status must be one of: ${validStatuses.join(', ')}`,
+      );
     }
 
     return this.prisma.application.update({
@@ -224,7 +238,6 @@ export class ApplicationsService {
       },
     });
   }
-
   // ✅ Withdraw application (User only)
   async withdraw(userId: number, applicationId: string) {
     const application = await this.prisma.application.findUnique({

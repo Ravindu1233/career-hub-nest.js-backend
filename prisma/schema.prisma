@@ -128,14 +128,33 @@ model Application {
   id         String   @id @default(uuid())
   jobId      String
   userId     Int      @map("user_id")
-  cvPath     String?  // Path to the uploaded CV
-  status     String   @default("APPLIED")
-  coverLetter String? // Store the cover letter here
+  cvPath     String?
+  status     String   @default("PENDING") // ✅ Changed from "APPLIED" to "PENDING"
+  coverLetter String?
   createdAt  DateTime @default(now())
 
   job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  interviews Interview[] // ✅ Add this relation
 
   @@unique([jobId, userId])
 }
+// =====================
+// Interview belongs to Application
+// =====================
+model Interview {
+  id              String   @id @default(uuid())
+  applicationId   String   @map("application_id")
+  interviewDate   DateTime @map("interview_date") @db.Timestamp(6)
+  interviewType   String   @map("interview_type") // video, phone, in-person
+  notes           String?  @db.Text
+  status          String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
+  meetingLink     String?  @map("meeting_link") @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
 
+  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@map("interview")
+}

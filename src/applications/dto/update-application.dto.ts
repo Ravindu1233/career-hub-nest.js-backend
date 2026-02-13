@@ -1,10 +1,11 @@
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 
 export class UpdateApplicationDto {
-  @IsOptional()
-  @IsEnum(['APPLIED', 'REVIEWED', 'SHORTLISTED', 'REJECTED', 'ACCEPTED'], {
+  @IsNotEmpty({ message: 'Status is required' })
+  @IsString()
+  @IsEnum(['PENDING', 'REJECTED', 'INTERVIEW_SCHEDULED', 'SHORTLISTED'], {
     message:
-      'Status must be one of: APPLIED, REVIEWED, SHORTLISTED, REJECTED, ACCEPTED',
+      'Status must be one of: PENDING, REJECTED, INTERVIEW_SCHEDULED, SHORTLISTED',
   })
-  status?: string;
+  status: string; // ✅ Remove the ? to make it required
 }
