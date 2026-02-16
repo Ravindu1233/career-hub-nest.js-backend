@@ -12,7 +12,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { CompanyModule } from './company/company.module';
 import { ApplicationsModule } from './applications/applications.module';
-import { InterviewsModule } from './interviews/interviews.module'; //
+import { InterviewsModule } from './interviews/interviews.module';
+import { CoursesModule } from './courses/courses.module';
+import { InstitutionsModule } from './institutions/institutions.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { InterviewsModule } from './interviews/interviews.module'; //
     CompanyModule,
     ApplicationsModule,
     InterviewsModule,
+    CoursesModule,
+    InstitutionsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'), // Path to the uploads directory
       serveRoot: '/uploads', // URL prefix to access files

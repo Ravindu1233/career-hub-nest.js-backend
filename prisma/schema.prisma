@@ -66,6 +66,7 @@ model User {
   profilePic String? @map("profile_pic") @db.VarChar(255)
 
   applications Application[]
+  institutions Institution[]
 
   @@map("user")
 }
@@ -157,4 +158,51 @@ model Interview {
 
   @@index([applicationId])
   @@map("interview")
+}
+
+// =====================
+// Institution - Only users can create
+// =====================
+model Institution {
+  id          String   @id @default(uuid())
+  userId      Int      @map("user_id") // User who created/manages the institution
+  name        String   @db.VarChar(255)
+  logo        String?  @db.VarChar(255) // Can store logo URL or initials
+  location    String?  @db.VarChar(255)
+  description String?  @db.Text
+  website     String?  @db.VarChar(255)
+  email       String   @db.VarChar(255)
+  phone       String?  @db.VarChar(255)
+  founded     String?  @db.VarChar(50) // Year as string (e.g., "2018")
+  students    String?  @db.VarChar(50) // e.g., "2,500+"
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  courses     Course[]
+
+  @@index([userId])
+  @@map("institution")
+}
+
+// =====================
+// Course belongs to Institution
+// =====================
+model Course {
+  id            String      @id @default(uuid())
+  institutionId String      @map("institution_id")
+  name          String      @db.VarChar(255)
+  duration      String      @db.VarChar(100) // e.g., "6 months"
+  startDate     String      @db.VarChar(100) // e.g., "Feb 15, 2026"
+  price         String      @db.VarChar(100) // e.g., "Free", "$1,000"
+  type          String      @db.VarChar(100) // e.g., "Certificate", "Diploma", "Degree"
+  spots         Int?        // Available spots
+  description   String?     @db.Text
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+
+  @@index([institutionId])
+  @@map("course")
 }
