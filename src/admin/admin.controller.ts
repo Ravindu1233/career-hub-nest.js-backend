@@ -6,6 +6,7 @@ import {
   Body,
   UseGuards,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,6 +28,8 @@ export class AdminController {
 
   // ─────────────────────────────────────────
   // USERS
+  // ⚠️  @Get('users/pending') MUST be before @Get('users/:id')
+  //     otherwise Express matches "pending" as an :id param
   // ─────────────────────────────────────────
 
   @Get('users')
@@ -47,7 +50,7 @@ export class AdminController {
     });
   }
 
-  @Get('users/pending')
+  @Get('users/pending') // ✅ MUST be before users/:id
   pendingUsers() {
     return this.prisma.user.findMany({
       where: { status: 'PENDING' },
@@ -62,6 +65,40 @@ export class AdminController {
       },
       orderBy: { userId: 'desc' },
     });
+  }
+
+  @Get('users/:id') // ✅ After pending
+  async getUser(@Param('id') id: string) {
+    const userId = parseInt(id);
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        mobile: true,
+        address: true,
+        bio: true,
+        skills: true,
+        schools: true,
+        dob: true,
+        profilePic: true,
+        status: true,
+        rejectionReason: true,
+        reviewedAt: true,
+        applications: {
+          select: {
+            id: true,
+            status: true,
+            job: { select: { jobTitle: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
   }
 
   @Patch('users/:id/approve')
@@ -111,6 +148,7 @@ export class AdminController {
 
   // ─────────────────────────────────────────
   // COMPANIES
+  // ⚠️  @Get('companies/pending') MUST be before @Get('companies/:id')
   // ─────────────────────────────────────────
 
   @Get('companies')
@@ -121,6 +159,9 @@ export class AdminController {
         email: true,
         companyName: true,
         phone: true,
+        industry: true,
+        companySize: true,
+        location: true,
         profilePic: true,
         status: true,
         rejectionReason: true,
@@ -130,7 +171,7 @@ export class AdminController {
     });
   }
 
-  @Get('companies/pending')
+  @Get('companies/pending') // ✅ MUST be before companies/:id
   pendingCompanies() {
     return this.prisma.company.findMany({
       where: { status: 'PENDING' },
@@ -139,11 +180,42 @@ export class AdminController {
         email: true,
         companyName: true,
         phone: true,
+        industry: true,
+        companySize: true,
         profilePic: true,
         status: true,
       },
       orderBy: { companyId: 'desc' },
     });
+  }
+
+  @Get('companies/:id') // ✅ After pending
+  async getCompany(@Param('id') id: string) {
+    const companyId = parseInt(id);
+    const company = await this.prisma.company.findUnique({
+      where: { companyId },
+      select: {
+        companyId: true,
+        email: true,
+        companyName: true,
+        phone: true,
+        industry: true,
+        companySize: true,
+        location: true,
+        description: true,
+        url: true,
+        profilePic: true,
+        status: true,
+        rejectionReason: true,
+        reviewedAt: true,
+        jobs: {
+          select: { id: true, jobTitle: true, status: true },
+          orderBy: { jobDate: 'desc' },
+        },
+      },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+    return company;
   }
 
   @Patch('companies/:id/approve')
@@ -193,6 +265,7 @@ export class AdminController {
 
   // ─────────────────────────────────────────
   // JOBS
+  // ⚠️  @Get('jobs/pending') MUST be before @Get('jobs/:id')
   // ─────────────────────────────────────────
 
   @Get('jobs')
@@ -205,7 +278,7 @@ export class AdminController {
     });
   }
 
-  @Get('jobs/pending')
+  @Get('jobs/pending') // ✅ MUST be before jobs/:id
   pendingJobs() {
     return this.prisma.job.findMany({
       where: { status: 'PENDING' },
@@ -214,6 +287,19 @@ export class AdminController {
       },
       orderBy: { jobDate: 'desc' },
     });
+  }
+
+  @Get('jobs/:id') // ✅ After pending
+  async getJob(@Param('id') id: string) {
+    const job = await this.prisma.job.findUnique({
+      where: { id },
+      include: {
+        company: { select: { companyId: true, companyName: true } },
+        applications: { select: { id: true, status: true } },
+      },
+    });
+    if (!job) throw new NotFoundException('Job not found');
+    return job;
   }
 
   @Patch('jobs/:id/approve')
@@ -260,6 +346,7 @@ export class AdminController {
 
   // ─────────────────────────────────────────
   // INSTITUTIONS
+  // ⚠️  @Get('institutions/pending') MUST be before @Get('institutions/:id')
   // ─────────────────────────────────────────
 
   @Get('institutions')
@@ -267,12 +354,13 @@ export class AdminController {
     return this.prisma.institution.findMany({
       include: {
         user: { select: { userId: true, email: true } },
+        courses: true, // ✅ included so list page can show course count if needed
       },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  @Get('institutions/pending')
+  @Get('institutions/pending') // ✅ MUST be before institutions/:id
   pendingInstitutions() {
     return this.prisma.institution.findMany({
       where: { status: 'PENDING' },
@@ -281,6 +369,19 @@ export class AdminController {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  @Get('institutions/:id') // ✅ After pending — NEW endpoint
+  async getInstitution(@Param('id') id: string) {
+    const institution = await this.prisma.institution.findUnique({
+      where: { id },
+      include: {
+        user: { select: { userId: true, email: true } },
+        courses: true, // ✅ full courses for detail page table
+      },
+    });
+    if (!institution) throw new NotFoundException('Institution not found');
+    return institution;
   }
 
   @Patch('institutions/:id/approve')
