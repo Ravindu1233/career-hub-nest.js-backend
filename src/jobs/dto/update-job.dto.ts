@@ -33,14 +33,14 @@ export class UpdateJobDto {
   @MinLength(5)
   jobDescription?: string;
 
-  // ✅ MULTI responsibilities
+  //  MULTI responsibilities
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
   @IsString({ each: true })
   responsibilities?: string[];
 
-  // ✅ MULTI skills
+  //  MULTI skills
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
@@ -52,7 +52,7 @@ export class UpdateJobDto {
   @MinLength(5)
   requirements?: string;
 
-  // ✅ Deadline
+  //  Deadline
   @IsOptional()
   @IsDateString()
   deadline?: string;

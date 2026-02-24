@@ -1,10 +1,4 @@
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  MinLength,
-  IsArray,
-} from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength, IsArray } from 'class-validator';
 
 export class UserRegisterDto {
   @IsEmail() email: string;
@@ -14,9 +8,8 @@ export class UserRegisterDto {
   @IsOptional() @IsString() lastName?: string;
   @IsOptional() @IsString() mobile?: string;
   @IsOptional() @IsString() address?: string;
-
-  // ✅ NEW
   @IsOptional() @IsString() bio?: string;
+  @IsOptional() @IsString() schools?: string;
 
   @IsOptional()
   @IsArray()
@@ -24,12 +17,7 @@ export class UserRegisterDto {
   skills?: string[];
 
   @IsOptional()
-  @IsString()
-  schools?: string;
-
-  // Updated certification to an array of strings
-  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  certifications?: string[]; // Multiple certifications now
+  certifications?: string[];
 }

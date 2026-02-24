@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -18,7 +17,7 @@ export class InstitutionsService {
   // INSTITUTION CRUD
   // =====================
 
-  // ✅ USER: Create institution
+  //  USER: Create institution — status defaults to PENDING via schema
   async createInstitution(userId: number, dto: CreateInstitutionDto) {
     return this.prisma.institution.create({
       data: {
@@ -33,12 +32,19 @@ export class InstitutionsService {
         founded: dto.founded,
         students: dto.students,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        status: true, //  return so frontend knows it's pending
+      },
     });
   }
 
-  // ✅ Get all institutions (public)
+  //  PUBLIC: Get all APPROVED institutions only
   async getAllInstitutions() {
     return this.prisma.institution.findMany({
+      where: { status: 'APPROVED' }, //  only approved
       include: {
         user: {
           select: {
@@ -56,7 +62,7 @@ export class InstitutionsService {
     });
   }
 
-  // ✅ Get institutions by user (my institutions)
+  //  USER: Get MY institutions (all statuses — so they can see pending/rejected)
   async getUserInstitutions(userId: number) {
     return this.prisma.institution.findMany({
       where: { userId },
@@ -69,7 +75,7 @@ export class InstitutionsService {
     });
   }
 
-  // ✅ Get single institution by ID (public)
+  //  PUBLIC: Get single APPROVED institution by ID
   async getInstitutionById(institutionId: string) {
     const institution = await this.prisma.institution.findUnique({
       where: { id: institutionId },
@@ -89,14 +95,14 @@ export class InstitutionsService {
       },
     });
 
-    if (!institution) {
+    if (!institution || institution.status !== 'APPROVED') {
       throw new NotFoundException('Institution not found');
     }
 
     return institution;
   }
 
-  // ✅ USER: Update institution (only owner)
+  // USER: Update institution (only owner)
   async updateInstitution(
     userId: number,
     institutionId: string,
@@ -106,9 +112,7 @@ export class InstitutionsService {
       where: { id: institutionId },
     });
 
-    if (!institution) {
-      throw new NotFoundException('Institution not found');
-    }
+    if (!institution) throw new NotFoundException('Institution not found');
 
     if (institution.userId !== userId) {
       throw new ForbiddenException('Not authorized to update this institution');
@@ -117,36 +121,30 @@ export class InstitutionsService {
     return this.prisma.institution.update({
       where: { id: institutionId },
       data: dto,
-      include: {
-        courses: true,
-      },
+      include: { courses: true },
     });
   }
 
-  // ✅ USER: Delete institution (only owner)
+  //  USER: Delete institution (only owner)
   async deleteInstitution(userId: number, institutionId: string) {
     const institution = await this.prisma.institution.findUnique({
       where: { id: institutionId },
     });
 
-    if (!institution) {
-      throw new NotFoundException('Institution not found');
-    }
+    if (!institution) throw new NotFoundException('Institution not found');
 
     if (institution.userId !== userId) {
       throw new ForbiddenException('Not authorized to delete this institution');
     }
 
-    return this.prisma.institution.delete({
-      where: { id: institutionId },
-    });
+    return this.prisma.institution.delete({ where: { id: institutionId } });
   }
 
   // =====================
   // COURSE CRUD
   // =====================
 
-  // ✅ USER: Create course for institution (only owner)
+  //  USER: Create course — institution must be APPROVED first
   async createCourse(
     userId: number,
     institutionId: string,
@@ -156,13 +154,18 @@ export class InstitutionsService {
       where: { id: institutionId },
     });
 
-    if (!institution) {
-      throw new NotFoundException('Institution not found');
-    }
+    if (!institution) throw new NotFoundException('Institution not found');
 
     if (institution.userId !== userId) {
       throw new ForbiddenException(
         'Not authorized to create courses for this institution',
+      );
+    }
+
+    //  Must be approved before adding courses
+    if (institution.status !== 'APPROVED') {
+      throw new ForbiddenException(
+        'Your institution must be approved before adding courses',
       );
     }
 
@@ -180,13 +183,13 @@ export class InstitutionsService {
     });
   }
 
-  // ✅ Get all courses for an institution (public)
+  //  PUBLIC: Get courses for an APPROVED institution only
   async getInstitutionCourses(institutionId: string) {
     const institution = await this.prisma.institution.findUnique({
       where: { id: institutionId },
     });
 
-    if (!institution) {
+    if (!institution || institution.status !== 'APPROVED') {
       throw new NotFoundException('Institution not found');
     }
 
@@ -196,7 +199,7 @@ export class InstitutionsService {
     });
   }
 
-  // ✅ Get single course by ID (public)
+  //  PUBLIC: Get single course (only if institution is APPROVED)
   async getCourseById(courseId: string) {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
@@ -216,23 +219,21 @@ export class InstitutionsService {
       },
     });
 
-    if (!course) {
+    if (!course || course.institution.status !== 'APPROVED') {
       throw new NotFoundException('Course not found');
     }
 
     return course;
   }
 
-  // ✅ USER: Update course (only institution owner)
+  //  USER: Update course (only institution owner)
   async updateCourse(userId: number, courseId: string, dto: UpdateCourseDto) {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
       include: { institution: true },
     });
 
-    if (!course) {
-      throw new NotFoundException('Course not found');
-    }
+    if (!course) throw new NotFoundException('Course not found');
 
     if (course.institution.userId !== userId) {
       throw new ForbiddenException('Not authorized to update this course');
@@ -244,29 +245,28 @@ export class InstitutionsService {
     });
   }
 
-  // ✅ USER: Delete course (only institution owner)
+  //  USER: Delete course (only institution owner)
   async deleteCourse(userId: number, courseId: string) {
     const course = await this.prisma.course.findUnique({
       where: { id: courseId },
       include: { institution: true },
     });
 
-    if (!course) {
-      throw new NotFoundException('Course not found');
-    }
+    if (!course) throw new NotFoundException('Course not found');
 
     if (course.institution.userId !== userId) {
       throw new ForbiddenException('Not authorized to delete this course');
     }
 
-    return this.prisma.course.delete({
-      where: { id: courseId },
-    });
+    return this.prisma.course.delete({ where: { id: courseId } });
   }
 
-  // ✅ Get all courses (public) - for browsing all available courses
+  //  PUBLIC: Get all courses from APPROVED institutions only
   async getAllCourses() {
     return this.prisma.course.findMany({
+      where: {
+        institution: { status: 'APPROVED' }, //  filter by institution status
+      },
       include: {
         institution: {
           select: {

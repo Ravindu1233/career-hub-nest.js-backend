@@ -1,14 +1,33 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  BadRequestException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountTypeRequired } from '../common/decorators/account-type.decorator';
 import { AccountTypeGuard } from '../common/guards/account-type.guard';
+import { IsOptional, IsString } from 'class-validator';
+
+class ReviewDto {
+  @IsOptional()
+  @IsString()
+  rejectionReason?: string;
+}
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
 @AccountTypeRequired('ADMIN')
 export class AdminController {
   constructor(private prisma: PrismaService) {}
+
+  // ─────────────────────────────────────────
+  // USERS
+  // ─────────────────────────────────────────
 
   @Get('users')
   users() {
@@ -18,12 +37,81 @@ export class AdminController {
         email: true,
         firstName: true,
         lastName: true,
-        mobile: true, // ✅ FIX (User model has mobile)
+        mobile: true,
         profilePic: true,
+        status: true,
+        rejectionReason: true,
+        reviewedAt: true,
       },
       orderBy: { userId: 'desc' },
     });
   }
+
+  @Get('users/pending')
+  pendingUsers() {
+    return this.prisma.user.findMany({
+      where: { status: 'PENDING' },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        mobile: true,
+        profilePic: true,
+        status: true,
+      },
+      orderBy: { userId: 'desc' },
+    });
+  }
+
+  @Patch('users/:id/approve')
+  async approveUser(@Param('id') id: string) {
+    const userId = parseInt(id);
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        status: 'APPROVED',
+        rejectionReason: null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'User approved successfully' };
+  }
+
+  @Patch('users/:id/reject')
+  async rejectUser(@Param('id') id: string, @Body() body: ReviewDto) {
+    if (!body.rejectionReason) {
+      throw new BadRequestException('Rejection reason is required');
+    }
+    const userId = parseInt(id);
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: body.rejectionReason,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'User rejected' };
+  }
+
+  @Patch('users/:id/suspend')
+  async suspendUser(@Param('id') id: string, @Body() body: ReviewDto) {
+    const userId = parseInt(id);
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        status: 'SUSPENDED',
+        rejectionReason: body.rejectionReason ?? null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'User suspended' };
+  }
+
+  // ─────────────────────────────────────────
+  // COMPANIES
+  // ─────────────────────────────────────────
 
   @Get('companies')
   companies() {
@@ -32,20 +120,214 @@ export class AdminController {
         companyId: true,
         email: true,
         companyName: true,
-        phone: true, // ✅ correct (Company model has phone)
+        phone: true,
         profilePic: true,
+        status: true,
+        rejectionReason: true,
+        reviewedAt: true,
       },
       orderBy: { companyId: 'desc' },
     });
   }
 
+  @Get('companies/pending')
+  pendingCompanies() {
+    return this.prisma.company.findMany({
+      where: { status: 'PENDING' },
+      select: {
+        companyId: true,
+        email: true,
+        companyName: true,
+        phone: true,
+        profilePic: true,
+        status: true,
+      },
+      orderBy: { companyId: 'desc' },
+    });
+  }
+
+  @Patch('companies/:id/approve')
+  async approveCompany(@Param('id') id: string) {
+    const companyId = parseInt(id);
+    await this.prisma.company.update({
+      where: { companyId },
+      data: {
+        status: 'APPROVED',
+        rejectionReason: null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Company approved successfully' };
+  }
+
+  @Patch('companies/:id/reject')
+  async rejectCompany(@Param('id') id: string, @Body() body: ReviewDto) {
+    if (!body.rejectionReason) {
+      throw new BadRequestException('Rejection reason is required');
+    }
+    const companyId = parseInt(id);
+    await this.prisma.company.update({
+      where: { companyId },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: body.rejectionReason,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Company rejected' };
+  }
+
+  @Patch('companies/:id/suspend')
+  async suspendCompany(@Param('id') id: string, @Body() body: ReviewDto) {
+    const companyId = parseInt(id);
+    await this.prisma.company.update({
+      where: { companyId },
+      data: {
+        status: 'SUSPENDED',
+        rejectionReason: body.rejectionReason ?? null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Company suspended' };
+  }
+
+  // ─────────────────────────────────────────
+  // JOBS
+  // ─────────────────────────────────────────
+
   @Get('jobs')
   jobs() {
     return this.prisma.job.findMany({
-      include: { company: { select: { companyId: true, companyName: true } } },
+      include: {
+        company: { select: { companyId: true, companyName: true } },
+      },
       orderBy: { jobDate: 'desc' },
     });
   }
+
+  @Get('jobs/pending')
+  pendingJobs() {
+    return this.prisma.job.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        company: { select: { companyId: true, companyName: true } },
+      },
+      orderBy: { jobDate: 'desc' },
+    });
+  }
+
+  @Patch('jobs/:id/approve')
+  async approveJob(@Param('id') id: string) {
+    await this.prisma.job.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        rejectionReason: null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Job approved successfully' };
+  }
+
+  @Patch('jobs/:id/reject')
+  async rejectJob(@Param('id') id: string, @Body() body: ReviewDto) {
+    if (!body.rejectionReason) {
+      throw new BadRequestException('Rejection reason is required');
+    }
+    await this.prisma.job.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: body.rejectionReason,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Job rejected' };
+  }
+
+  @Patch('jobs/:id/suspend')
+  async suspendJob(@Param('id') id: string, @Body() body: ReviewDto) {
+    await this.prisma.job.update({
+      where: { id },
+      data: {
+        status: 'SUSPENDED',
+        rejectionReason: body.rejectionReason ?? null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Job suspended' };
+  }
+
+  // ─────────────────────────────────────────
+  // INSTITUTIONS
+  // ─────────────────────────────────────────
+
+  @Get('institutions')
+  institutions() {
+    return this.prisma.institution.findMany({
+      include: {
+        user: { select: { userId: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  @Get('institutions/pending')
+  pendingInstitutions() {
+    return this.prisma.institution.findMany({
+      where: { status: 'PENDING' },
+      include: {
+        user: { select: { userId: true, email: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  @Patch('institutions/:id/approve')
+  async approveInstitution(@Param('id') id: string) {
+    await this.prisma.institution.update({
+      where: { id },
+      data: {
+        status: 'APPROVED',
+        rejectionReason: null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Institution approved successfully' };
+  }
+
+  @Patch('institutions/:id/reject')
+  async rejectInstitution(@Param('id') id: string, @Body() body: ReviewDto) {
+    if (!body.rejectionReason) {
+      throw new BadRequestException('Rejection reason is required');
+    }
+    await this.prisma.institution.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: body.rejectionReason,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Institution rejected' };
+  }
+
+  @Patch('institutions/:id/suspend')
+  async suspendInstitution(@Param('id') id: string, @Body() body: ReviewDto) {
+    await this.prisma.institution.update({
+      where: { id },
+      data: {
+        status: 'SUSPENDED',
+        rejectionReason: body.rejectionReason ?? null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'Institution suspended' };
+  }
+
+  // ─────────────────────────────────────────
+  // APPLICATIONS (read-only for admin)
+  // ─────────────────────────────────────────
 
   @Get('applications')
   applications() {

@@ -12,7 +12,7 @@ import { UpdateInterviewDto } from './dto/update-interview.dto';
 export class InterviewsService {
   constructor(private prisma: PrismaService) {}
 
-  // ✅ COMPANY: Schedule interview for an application
+  //  COMPANY: Schedule interview for an application
   async create(
     companyId: number,
     applicationId: string,
@@ -81,7 +81,7 @@ export class InterviewsService {
     };
   }
 
-  // ✅ COMPANY: Get all interviews for an application
+  //  COMPANY: Get all interviews for an application
   async getByApplication(companyId: number, applicationId: string) {
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },
@@ -104,7 +104,7 @@ export class InterviewsService {
     });
   }
 
-  // ✅ COMPANY: Get all interviews for company's applications
+  //  COMPANY: Get all interviews for company's applications
   async getCompanyInterviews(companyId: number) {
     return this.prisma.interview.findMany({
       where: {
@@ -138,7 +138,7 @@ export class InterviewsService {
     });
   }
 
-  // ✅ Get single interview by ID (COMPANY or USER)
+  //  Get single interview by ID (COMPANY or USER)
   async getById(userId: number, accountType: string, interviewId: string) {
     const interview = await this.prisma.interview.findUnique({
       where: { id: interviewId },
@@ -191,7 +191,7 @@ export class InterviewsService {
     return interview;
   }
 
-  // ✅ USER: Get my interviews
+  // USER: Get my interviews
   async getUserInterviews(userId: number) {
     return this.prisma.interview.findMany({
       where: {
@@ -226,7 +226,7 @@ export class InterviewsService {
     });
   }
 
-  // ✅ COMPANY: Update interview
+  // COMPANY: Update interview
   async update(
     companyId: number,
     interviewId: string,
@@ -291,7 +291,7 @@ export class InterviewsService {
     });
   }
 
-  // ✅ COMPANY: Cancel interview
+  //  COMPANY: Cancel interview
   async cancel(companyId: number, interviewId: string) {
     const interview = await this.prisma.interview.findUnique({
       where: { id: interviewId },
@@ -316,7 +316,7 @@ export class InterviewsService {
     });
   }
 
-  // ✅ COMPANY: Delete interview
+  //  COMPANY: Delete interview
   async delete(companyId: number, interviewId: string) {
     const interview = await this.prisma.interview.findUnique({
       where: { id: interviewId },

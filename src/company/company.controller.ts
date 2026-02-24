@@ -13,6 +13,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { ApprovedGuard } from '../common/guards/approved.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 
@@ -21,7 +22,7 @@ export class CompanyController {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * ✅ PUBLIC: list all companies
+   * PUBLIC: list all APPROVED companies only
    * GET /companies?q=&industry=&size=
    */
   @Get()
@@ -32,6 +33,7 @@ export class CompanyController {
   ) {
     const companies = await this.prisma.company.findMany({
       where: {
+        status: 'APPROVED', //  only show verified companies publicly
         AND: [
           q
             ? {
@@ -60,7 +62,6 @@ export class CompanyController {
       orderBy: { companyId: 'desc' },
     });
 
-    // return openJobs for frontend
     return companies.map((c) => ({
       companyId: c.companyId,
       companyName: c.companyName,
@@ -71,12 +72,12 @@ export class CompanyController {
       url: c.url,
       profilePic: c.profilePic,
       founded: c.founded,
-      openJobs: c._count.jobs, // ✅ what frontend needs
+      openJobs: c._count.jobs,
     }));
   }
 
   /**
-   * ✅ AUTH (COMPANY ONLY): get my company profile
+   *  AUTH (COMPANY ONLY): get my company profile
    * GET /companies/me
    *
    * IMPORTANT: Must come BEFORE @Get(':id')
@@ -107,17 +108,19 @@ export class CompanyController {
         founded: true,
         benefitsAndPerks: true,
         profilePic: true,
+        status: true, //  so frontend knows current approval state
+        rejectionReason: true, //  so frontend can show reason if rejected
       },
     });
   }
 
   /**
-   * ✅ AUTH (COMPANY ONLY): update my company profile
+   *  AUTH (COMPANY ONLY + APPROVED): update my company profile
    * PATCH /companies/me
    *
    * IMPORTANT: Must come BEFORE @Get(':id')
    */
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ApprovedGuard)
   @Patch('me')
   async updateMe(@Req() req: any, @Body() dto: UpdateCompanyDto) {
     const payload = req.user;
@@ -141,7 +144,6 @@ export class CompanyController {
       updateData.benefitsAndPerks = dto.benefitsAndPerks;
     if (dto.profilePic !== undefined) updateData.profilePic = dto.profilePic;
 
-    // founded can come as ISO string "YYYY-MM-DD" or full ISO
     if (dto.founded !== undefined) {
       const d = new Date(dto.founded);
       if (Number.isNaN(d.getTime())) {
@@ -167,12 +169,13 @@ export class CompanyController {
         founded: true,
         benefitsAndPerks: true,
         profilePic: true,
+        status: true,
       },
     });
   }
 
   /**
-   * ✅ PUBLIC: get single company by id
+   *  PUBLIC: get single APPROVED company by id
    * GET /companies/:id
    *
    * NOTE: must be AFTER /me routes
@@ -180,7 +183,10 @@ export class CompanyController {
   @Get(':id')
   async getById(@Param('id', ParseIntPipe) id: number) {
     return this.prisma.company.findUnique({
-      where: { companyId: id },
+      where: {
+        companyId: id,
+        status: 'APPROVED', //  only return if approved
+      },
       select: {
         companyId: true,
         companyName: true,

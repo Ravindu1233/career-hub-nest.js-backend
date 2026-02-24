@@ -8,6 +8,17 @@ generator client {
 }
 
 // =====================
+// Enum: Approval Status
+// Used across User, Company, Job, Institution
+// =====================
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+// =====================
 // Table: admin
 // =====================
 model Admin {
@@ -23,10 +34,8 @@ model Admin {
 
   mobileNumber String? @map("mobile_number") @db.VarChar(255)
 
-  // store hashed password, but keep DB column name "password"
   passwordHash String @map("password") @db.VarChar(255)
 
-  // longblob -> Bytes (Postgres bytea)
   image Bytes? @map("image")
 
   profilePic String? @map("profile_pic") @db.VarChar(255)
@@ -40,9 +49,9 @@ model Admin {
 model User {
   userId Int @id @default(autoincrement()) @map("user_id")
 
-  address       String? @db.VarChar(255)
-  certifications String[] @default([]) @db.Text // Changed to array of strings for multiple certifications
-  dob DateTime? @db.Timestamp(6)
+  address        String?  @db.VarChar(255)
+  certifications String[] @default([]) @db.Text
+  dob            DateTime? @db.Timestamp(6)
 
   email String @unique @db.VarChar(255)
 
@@ -53,17 +62,20 @@ model User {
 
   olPassCount Int? @map("ol_pass_count")
 
-  // ✅ NEW FIELDS
   bio     String?  @db.VarChar(1000)
-  skills  String[] @default([])   // Postgres text[]
+  skills  String[] @default([])
   schools String?  @db.VarChar(500)
 
-  // store hashed password, but keep DB column name "password"
   passwordHash String @map("password") @db.VarChar(255)
 
-  image Bytes? @map("image")
-
+  image      Bytes?  @map("image")
   profilePic String? @map("profile_pic") @db.VarChar(255)
+
+  //  Approval fields
+  status          ApprovalStatus @default(PENDING)
+  rejectionReason String?        @map("rejection_reason") @db.VarChar(1000)
+  reviewedAt      DateTime?      @map("reviewed_at") @db.Timestamp(6)
+  reviewedByAdminId Int?         @map("reviewed_by_admin_id")
 
   applications Application[]
   institutions Institution[]
@@ -71,27 +83,33 @@ model User {
   @@map("user")
 }
 
-
 // =====================
-// Table: company  (separate entity, not a Role)
+// Table: company
 // =====================
 model Company {
-  companyId     Int      @id @default(autoincrement()) @map("company_id")
-  companyName   String   @map("company_name") @db.VarChar(255)
-  email         String   @unique @db.VarChar(255)
-  description   String?  @db.VarChar(255)
-  address       String?  @db.VarChar(255)
-  phone         String?  @db.VarChar(255)  // Added field for phone
-  location      String?  @db.VarChar(255)  // Added field for location
-  companySize   String?  @db.VarChar(255)  // Added field for company size
-  founded       DateTime? @db.Timestamp(6) // Added field for founding year
-  benefitsAndPerks String? @db.VarChar(255) // Added field for benefits & perks
-  profilePic    String?  @map("profile_pic") @db.VarChar(255)
-  industry      String?  @db.VarChar(255)
-  passwordHash  String   @map("password") @db.VarChar(255)
-  url           String?  @db.VarChar(255)
-  subscriptionId Int?    @map("subscription_id")
-  jobs          Job[]
+  companyId       Int      @id @default(autoincrement()) @map("company_id")
+  companyName     String   @map("company_name") @db.VarChar(255)
+  email           String   @unique @db.VarChar(255)
+  description     String?  @db.VarChar(255)
+  address         String?  @db.VarChar(255)
+  phone           String?  @db.VarChar(255)
+  location        String?  @db.VarChar(255)
+  companySize     String?  @db.VarChar(255)
+  founded         DateTime? @db.Timestamp(6)
+  benefitsAndPerks String? @db.VarChar(255)
+  profilePic      String?  @map("profile_pic") @db.VarChar(255)
+  industry        String?  @db.VarChar(255)
+  passwordHash    String   @map("password") @db.VarChar(255)
+  url             String?  @db.VarChar(255)
+  subscriptionId  Int?     @map("subscription_id")
+
+  //  Approval fields
+  status            ApprovalStatus @default(PENDING)
+  rejectionReason   String?        @map("rejection_reason") @db.VarChar(1000)
+  reviewedAt        DateTime?      @map("reviewed_at") @db.Timestamp(6)
+  reviewedByAdminId Int?           @map("reviewed_by_admin_id")
+
+  jobs Job[]
 
   @@map("company")
 }
@@ -100,24 +118,29 @@ model Company {
 // Job belongs to Company
 // =====================
 model Job {
-  id               String   @id @default(uuid())
-  companyId        Int      @map("company_id")
-  jobTitle         String
-  jobType          String
-  location         String
-  salaryRange      String
-  jobDescription   String
+  id             String   @id @default(uuid())
+  companyId      Int      @map("company_id")
+  jobTitle       String
+  jobType        String
+  location       String
+  salaryRange    String
+  jobDescription String
 
-  // ✅ changed from single string to arrays + deadline
   responsibilities String[] @default([]) @db.Text
   requiredSkills   String[] @default([]) @db.Text
-  requirements     String   // keep as extra text if you want (optional UI section)
+  requirements     String
 
-  deadline         DateTime? @db.Timestamp(6)  // ✅ NEW
-  jobDate          DateTime  @default(now())
+  deadline DateTime? @db.Timestamp(6)
+  jobDate  DateTime  @default(now())
 
-  company          Company   @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
-  applications     Application[]
+  //  Approval fields
+  status            ApprovalStatus @default(PENDING)
+  rejectionReason   String?        @map("rejection_reason") @db.VarChar(1000)
+  reviewedAt        DateTime?      @map("reviewed_at") @db.Timestamp(6)
+  reviewedByAdminId Int?           @map("reviewed_by_admin_id")
+
+  company      Company       @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  applications Application[]
 
   @@index([companyId])
 }
@@ -126,35 +149,36 @@ model Job {
 // Application belongs to Job + User
 // =====================
 model Application {
-  id         String   @id @default(uuid())
-  jobId      String
-  userId     Int      @map("user_id")
-  cvPath     String?
-  status     String   @default("PENDING") // ✅ Changed from "APPLIED" to "PENDING"
+  id          String   @id @default(uuid())
+  jobId       String
+  userId      Int      @map("user_id")
+  cvPath      String?
+  status      String   @default("PENDING")
   coverLetter String?
-  createdAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
 
-  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  interviews Interview[] // ✅ Add this relation
+  job        Job         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  interviews Interview[]
 
   @@unique([jobId, userId])
 }
+
 // =====================
 // Interview belongs to Application
 // =====================
 model Interview {
-  id              String   @id @default(uuid())
-  applicationId   String   @map("application_id")
-  interviewDate   DateTime @map("interview_date") @db.Timestamp(6)
-  interviewType   String   @map("interview_type") // video, phone, in-person
-  notes           String?  @db.Text
-  status          String   @default("SCHEDULED") // SCHEDULED, COMPLETED, CANCELLED
-  meetingLink     String?  @map("meeting_link") @db.VarChar(500)
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  id            String   @id @default(uuid())
+  applicationId String   @map("application_id")
+  interviewDate DateTime @map("interview_date") @db.Timestamp(6)
+  interviewType String   @map("interview_type")
+  notes         String?  @db.Text
+  status        String   @default("SCHEDULED")
+  meetingLink   String?  @map("meeting_link") @db.VarChar(500)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-  application     Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
   @@map("interview")
@@ -165,21 +189,27 @@ model Interview {
 // =====================
 model Institution {
   id          String   @id @default(uuid())
-  userId      Int      @map("user_id") // User who created/manages the institution
+  userId      Int      @map("user_id")
   name        String   @db.VarChar(255)
-  logo        String?  @db.VarChar(255) // Can store logo URL or initials
+  logo        String?  @db.VarChar(255)
   location    String?  @db.VarChar(255)
   description String?  @db.Text
   website     String?  @db.VarChar(255)
   email       String   @db.VarChar(255)
   phone       String?  @db.VarChar(255)
-  founded     String?  @db.VarChar(50) // Year as string (e.g., "2018")
-  students    String?  @db.VarChar(50) // e.g., "2,500+"
+  founded     String?  @db.VarChar(50)
+  students    String?  @db.VarChar(50)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  user        User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
-  courses     Course[]
+  //  Approval fields
+  status            ApprovalStatus @default(PENDING)
+  rejectionReason   String?        @map("rejection_reason") @db.VarChar(1000)
+  reviewedAt        DateTime?      @map("reviewed_at") @db.Timestamp(6)
+  reviewedByAdminId Int?           @map("reviewed_by_admin_id")
+
+  user    User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  courses Course[]
 
   @@index([userId])
   @@map("institution")
@@ -192,16 +222,16 @@ model Course {
   id            String      @id @default(uuid())
   institutionId String      @map("institution_id")
   name          String      @db.VarChar(255)
-  duration      String      @db.VarChar(100) // e.g., "6 months"
-  startDate     String      @db.VarChar(100) // e.g., "Feb 15, 2026"
-  price         String      @db.VarChar(100) // e.g., "Free", "$1,000"
-  type          String      @db.VarChar(100) // e.g., "Certificate", "Diploma", "Degree"
-  spots         Int?        // Available spots
+  duration      String      @db.VarChar(100)
+  startDate     String      @db.VarChar(100)
+  price         String      @db.VarChar(100)
+  type          String      @db.VarChar(100)
+  spots         Int?
   description   String?     @db.Text
   createdAt     DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  institution   Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
+  institution Institution @relation(fields: [institutionId], references: [id], onDelete: Cascade)
 
   @@index([institutionId])
   @@map("course")

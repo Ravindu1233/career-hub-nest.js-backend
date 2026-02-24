@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -29,20 +30,32 @@ export class AuthService {
     this.rounds = Number(this.config.get('BCRYPT_ROUNDS') ?? 10);
   }
 
-  // ✅ Fully fixed signToken (no overload errors)
   private signToken(payload: JwtPayload) {
     const secret = this.config.get<string>('JWT_SECRET') ?? 'CHANGE_ME';
-
-    // ✅ Fix TS typing issue for expiresIn across versions
     const expiresIn = (this.config.get<string>('JWT_EXPIRES') ?? '7d') as any;
-
-    return this.jwt.sign(payload, {
-      secret,
-      expiresIn,
-    });
+    return this.jwt.sign(payload, { secret, expiresIn });
   }
 
-  // ---------- USER ----------
+  // ─── Helper: throw if account is not allowed to login ───────────────────────
+  private checkAccountStatus(status: string, rejectionReason?: string | null) {
+    if (status === 'REJECTED') {
+      throw new ForbiddenException(
+        `Your account has been rejected. Reason: ${rejectionReason ?? 'No reason provided'}`,
+      );
+    }
+    if (status === 'SUSPENDED') {
+      throw new ForbiddenException(
+        `Your account has been suspended. ${rejectionReason ? 'Reason: ' + rejectionReason : ''}`.trim(),
+      );
+    }
+    // PENDING → allowed to login but frontend will see status: 'PENDING'
+    // APPROVED → fully allowed
+  }
+
+  // ─────────────────────────────────────────
+  // USER
+  // ─────────────────────────────────────────
+
   async registerUser(dto: UserRegisterDto) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -59,12 +72,11 @@ export class AuthService {
         lastName: dto.lastName ?? null,
         mobile: dto.mobile ?? null,
         address: dto.address ?? null,
-
-        // ✅ NEW
         bio: dto.bio ?? null,
         skills: dto.skills ?? [],
         schools: dto.schools ?? null,
-        certifications: dto.certifications ?? [], // Store multiple certifications here
+        certifications: dto.certifications ?? [],
+        // status defaults to PENDING via Prisma schema
       },
       select: {
         userId: true,
@@ -76,12 +88,18 @@ export class AuthService {
         bio: true,
         skills: true,
         schools: true,
-        certifications: true, // Include certifications in the selection
+        certifications: true,
+        status: true, //  return so frontend knows it's pending
       },
     });
 
     const token = this.signToken({ sub: user.userId, type: 'USER' });
-    return { token, user };
+    return {
+      token,
+      user,
+      message:
+        'Registration successful. Your account is pending admin approval.',
+    };
   }
 
   async loginUser(dto: UserLoginDto) {
@@ -93,11 +111,24 @@ export class AuthService {
     const ok = await bcrypt.compare(dto.password, user.passwordHash);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
+    //  Block REJECTED / SUSPENDED from getting a token
+    this.checkAccountStatus(user.status, user.rejectionReason);
+
     const token = this.signToken({ sub: user.userId, type: 'USER' });
-    return { token, user: { userId: user.userId, email: user.email } };
+    return {
+      token,
+      user: {
+        userId: user.userId,
+        email: user.email,
+        status: user.status, //  frontend can show "pending approval" banner
+      },
+    };
   }
 
-  // ---------- COMPANY ----------
+  // ─────────────────────────────────────────
+  // COMPANY
+  // ─────────────────────────────────────────
+
   async registerCompany(dto: CompanyRegisterDto) {
     const existing = await this.prisma.company.findUnique({
       where: { email: dto.email },
@@ -111,9 +142,7 @@ export class AuthService {
         email: dto.email,
         passwordHash: hash,
         companyName: dto.companyName,
-
-        phone: dto.phone ?? null, // ✅ FIX (Company model has phone, not mobile)
-
+        phone: dto.phone ?? null,
         address: dto.address ?? null,
         industry: dto.industry ?? null,
         description: dto.description ?? null,
@@ -121,19 +150,25 @@ export class AuthService {
         location: dto.location ?? null,
         companySize: dto.companySize ?? null,
         benefitsAndPerks: dto.benefitsAndPerks ?? null,
-        // founded: dto.founded ? new Date(dto.founded) : null, // if you add it to DTO
         profilePic: dto.profilePic ?? null,
+        // status defaults to PENDING via Prisma schema
       },
       select: {
         companyId: true,
         email: true,
         companyName: true,
-        phone: true, // ✅ include if you want
+        phone: true,
+        status: true, //  return so frontend knows it's pending
       },
     });
 
     const token = this.signToken({ sub: company.companyId, type: 'COMPANY' });
-    return { token, company };
+    return {
+      token,
+      company,
+      message:
+        'Registration successful. Your company is pending admin approval.',
+    };
   }
 
   async loginCompany(dto: CompanyLoginDto) {
@@ -145,14 +180,24 @@ export class AuthService {
     const ok = await bcrypt.compare(dto.password, company.passwordHash);
     if (!ok) throw new UnauthorizedException('Invalid credentials');
 
+    //  Block REJECTED / SUSPENDED from getting a token
+    this.checkAccountStatus(company.status, company.rejectionReason);
+
     const token = this.signToken({ sub: company.companyId, type: 'COMPANY' });
     return {
       token,
-      company: { companyId: company.companyId, email: company.email },
+      company: {
+        companyId: company.companyId,
+        email: company.email,
+        status: company.status, //  frontend can show "pending approval" banner
+      },
     };
   }
 
-  // ---------- ADMIN ----------
+  // ─────────────────────────────────────────
+  // ADMIN
+  // ─────────────────────────────────────────
+
   async registerAdmin(dto: AdminRegisterDto) {
     const existing = await this.prisma.admin.findUnique({
       where: { email: dto.email },

@@ -15,7 +15,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
     const adapter = new PrismaPg({ connectionString: url });
 
-    // ✅ Prisma v7 requires adapter OR accelerateUrl
+    //  Prisma v7 requires adapter OR accelerateUrl
     super({ adapter });
   }
 

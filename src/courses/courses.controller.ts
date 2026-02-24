@@ -15,14 +15,15 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { AccountTypeRequired } from '../common/decorators/account-type.decorator';
 import { AccountTypeGuard } from '../common/guards/account-type.guard';
+import { ApprovedGuard } from '../common/guards/approved.guard';
 import { JwtPayload } from '../common/types/jwt-payload.type';
 
 @Controller('courses')
 export class CoursesController {
   constructor(private courses: CoursesService) {}
 
-  // ✅ USER: Create course for institution (only owner)
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  //  USER (APPROVED): Create course for institution (only owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Post('institution/:institutionId')
   create(
@@ -34,26 +35,26 @@ export class CoursesController {
     return this.courses.create(user.sub, institutionId, dto);
   }
 
-  // ✅ PUBLIC: Get all courses
+  // PUBLIC: Get all courses
   @Get()
   getAll() {
     return this.courses.getAll();
   }
 
-  // ✅ PUBLIC: Get all courses for an institution
+  //  PUBLIC: Get all courses for an institution
   @Get('institution/:institutionId')
   getByInstitution(@Param('institutionId') institutionId: string) {
     return this.courses.getByInstitution(institutionId);
   }
 
-  // ✅ PUBLIC: Get single course
+  // PUBLIC: Get single course
   @Get(':id')
   getCourse(@Param('id') id: string) {
     return this.courses.getById(id);
   }
 
-  // ✅ USER: Update course (only institution owner)
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  // USER (APPROVED): Update course (only institution owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Patch(':id')
   update(
@@ -65,8 +66,8 @@ export class CoursesController {
     return this.courses.update(user.sub, id, dto);
   }
 
-  // ✅ USER: Delete course (only institution owner)
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  //  USER (APPROVED): Delete course (only institution owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Delete(':id')
   delete(@Req() req: any, @Param('id') id: string) {

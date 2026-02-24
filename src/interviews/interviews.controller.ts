@@ -21,7 +21,7 @@ import { JwtPayload } from '../common/types/jwt-payload.type';
 export class InterviewsController {
   constructor(private interviews: InterviewsService) {}
 
-  // ✅ COMPANY: Schedule interview for an application
+  // COMPANY: Schedule interview for an application
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('COMPANY')
   @Post('application/:applicationId')
@@ -34,7 +34,7 @@ export class InterviewsController {
     return this.interviews.create(user.sub, applicationId, dto);
   }
 
-  // ✅ COMPANY: Get all interviews for an application
+  // COMPANY: Get all interviews for an application
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('COMPANY')
   @Get('application/:applicationId')
@@ -46,7 +46,7 @@ export class InterviewsController {
     return this.interviews.getByApplication(user.sub, applicationId);
   }
 
-  // ✅ COMPANY: Get all interviews for company's applications
+  //  COMPANY: Get all interviews for company's applications
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('COMPANY')
   @Get('company/all')
@@ -55,7 +55,7 @@ export class InterviewsController {
     return this.interviews.getCompanyInterviews(user.sub);
   }
 
-  // ✅ USER: Get my interviews
+  // USER: Get my interviews
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('USER')
   @Get('my-interviews')
@@ -64,7 +64,7 @@ export class InterviewsController {
     return this.interviews.getUserInterviews(user.sub);
   }
 
-  // ✅ Get single interview details (USER or COMPANY)
+  // Get single interview details (USER or COMPANY)
   @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   getInterview(@Req() req: any, @Param('id') id: string) {
@@ -72,7 +72,7 @@ export class InterviewsController {
     return this.interviews.getById(user.sub, user.type, id);
   }
 
-  // ✅ COMPANY: Update interview
+  //  COMPANY: Update interview
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('COMPANY')
   @Patch(':id')
@@ -85,7 +85,7 @@ export class InterviewsController {
     return this.interviews.update(user.sub, id, dto);
   }
 
-  // ✅ COMPANY: Cancel interview
+  //  COMPANY: Cancel interview
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('COMPANY')
   @Patch(':id/cancel')
@@ -94,7 +94,7 @@ export class InterviewsController {
     return this.interviews.cancel(user.sub, id);
   }
 
-  // ✅ COMPANY: Delete interview
+  // COMPANY: Delete interview
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('COMPANY')
   @Delete(':id')

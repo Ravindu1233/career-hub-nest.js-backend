@@ -15,6 +15,7 @@ import { ApplicationsModule } from './applications/applications.module';
 import { InterviewsModule } from './interviews/interviews.module';
 import { CoursesModule } from './courses/courses.module';
 import { InstitutionsModule } from './institutions/institutions.module';
+import { ApprovedGuard } from './common/guards/approved.guard';
 
 @Module({
   imports: [
@@ -32,9 +33,10 @@ import { InstitutionsModule } from './institutions/institutions.module';
     CoursesModule,
     InstitutionsModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'), // Path to the uploads directory
-      serveRoot: '/uploads', // URL prefix to access files
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
     }),
   ],
+  providers: [ApprovedGuard], // required so PrismaService can be injected into ApprovedGuard
 })
 export class AppModule {}

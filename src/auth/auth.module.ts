@@ -12,25 +12,15 @@ import { AdminAuthController } from './auth.controller.admin';
 
 @Module({
   imports: [
-    // ✅ Ensure ConfigService is available here
     ConfigModule,
-
     PassportModule,
-
     JwtModule.registerAsync({
-      // ✅ IMPORTANT for async config injection
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService): JwtModuleOptions => {
         const secret = config.get<string>('JWT_SECRET') ?? 'CHANGE_ME';
-
-        // ✅ Fix TS typing issue across versions (supports "7d", "1h", etc.)
         const expiresIn = (config.get<string>('JWT_EXPIRES') ?? '7d') as any;
-
-        return {
-          secret,
-          signOptions: { expiresIn },
-        };
+        return { secret, signOptions: { expiresIn } };
       },
     }),
   ],

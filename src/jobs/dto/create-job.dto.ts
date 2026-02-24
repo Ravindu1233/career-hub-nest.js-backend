@@ -28,13 +28,13 @@ export class CreateJobDto {
   @MinLength(5)
   jobDescription: string;
 
-  // ✅ MULTI responsibilities
+  //  MULTI responsibilities
   @IsArray()
   @ArrayMinSize(1)
   @IsString({ each: true })
   responsibilities: string[];
 
-  // ✅ MULTI skills
+  // MULTI skills
   @IsArray()
   @ArrayMinSize(1)
   @IsString({ each: true })
@@ -45,7 +45,7 @@ export class CreateJobDto {
   @MinLength(5)
   requirements: string;
 
-  // ✅ Deadline
+  //  Deadline
   @IsOptional()
   @IsDateString()
   deadline?: string; // client sends ISO date string

@@ -11,20 +11,37 @@ import { UpdateJobDto } from './dto/update-job.dto';
 export class JobsService {
   constructor(private prisma: PrismaService) {}
 
+  //  PUBLIC: Only show APPROVED jobs from APPROVED companies
   listAll() {
     return this.prisma.job.findMany({
-      include: { company: { select: { companyId: true, companyName: true } } },
+      where: {
+        status: 'APPROVED',
+        company: { status: 'APPROVED' },
+      },
+      include: {
+        company: { select: { companyId: true, companyName: true } },
+      },
       orderBy: { jobDate: 'desc' },
     });
   }
 
-  getById(id: string) {
-    return this.prisma.job.findUnique({
+  // PUBLIC: Get single job — only if approved
+  async getById(id: string) {
+    const job = await this.prisma.job.findUnique({
       where: { id },
-      include: { company: { select: { companyId: true, companyName: true } } },
+      include: {
+        company: { select: { companyId: true, companyName: true } },
+      },
     });
+
+    if (!job || job.status !== 'APPROVED') {
+      throw new NotFoundException('Job not found');
+    }
+
+    return job;
   }
 
+  // COMPANY: List own jobs (all statuses — so they see pending/rejected)
   listCompanyJobs(companyId: number) {
     return this.prisma.job.findMany({
       where: { companyId },
@@ -32,6 +49,7 @@ export class JobsService {
     });
   }
 
+  //  COMPANY: Create job — defaults to PENDING via schema
   async create(companyId: number, dto: CreateJobDto) {
     return this.prisma.job.create({
       data: {
@@ -41,17 +59,21 @@ export class JobsService {
         location: dto.location,
         salaryRange: dto.salaryRange,
         jobDescription: dto.jobDescription,
-
-        // ✅ new fields
         responsibilities: dto.responsibilities,
         requiredSkills: dto.requiredSkills,
         requirements: dto.requirements,
-
         deadline: dto.deadline ? new Date(dto.deadline) : null,
+        // status defaults to PENDING via Prisma schema
+      },
+      select: {
+        id: true,
+        jobTitle: true,
+        status: true, // return so frontend knows it's pending review
       },
     });
   }
 
+  //  COMPANY: Update own job
   async update(companyId: number, jobId: string, dto: UpdateJobDto) {
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
@@ -66,16 +88,15 @@ export class JobsService {
         location: dto.location ?? undefined,
         salaryRange: dto.salaryRange ?? undefined,
         jobDescription: dto.jobDescription ?? undefined,
-
         responsibilities: dto.responsibilities ?? undefined,
         requiredSkills: dto.requiredSkills ?? undefined,
         requirements: dto.requirements ?? undefined,
-
         deadline: dto.deadline ? new Date(dto.deadline) : undefined,
       },
     });
   }
 
+  // COMPANY: Delete own job
   async remove(companyId: number, jobId: string) {
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');

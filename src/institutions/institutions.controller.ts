@@ -17,6 +17,7 @@ import { CreateCourseDto } from '../courses/dto/create-course.dto';
 import { UpdateCourseDto } from '../courses/dto/update-course.dto';
 import { AccountTypeRequired } from '../common/decorators/account-type.decorator';
 import { AccountTypeGuard } from '../common/guards/account-type.guard';
+import { ApprovedGuard } from '../common/guards/approved.guard';
 import { JwtPayload } from '../common/types/jwt-payload.type';
 
 @Controller('institutions')
@@ -27,8 +28,9 @@ export class InstitutionsController {
   // INSTITUTION ENDPOINTS
   // =====================
 
-  // ✅ USER: Create institution
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  // ✅ USER (APPROVED): Create institution
+  // Note: user needs to be approved; institution itself starts as PENDING
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Post()
   createInstitution(@Req() req: any, @Body() dto: CreateInstitutionDto) {
@@ -36,13 +38,13 @@ export class InstitutionsController {
     return this.institutions.createInstitution(user.sub, dto);
   }
 
-  // ✅ PUBLIC: Get all institutions
+  // ✅ PUBLIC: Get all APPROVED institutions
   @Get()
   getAllInstitutions() {
     return this.institutions.getAllInstitutions();
   }
 
-  // ✅ USER: Get my institutions
+  // ✅ USER: Get my institutions (all statuses — shows pending/rejected to owner)
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('USER')
   @Get('my-institutions')
@@ -51,14 +53,14 @@ export class InstitutionsController {
     return this.institutions.getUserInstitutions(user.sub);
   }
 
-  // ✅ PUBLIC: Get single institution
+  // ✅ PUBLIC: Get single APPROVED institution
   @Get(':id')
   getInstitution(@Param('id') id: string) {
     return this.institutions.getInstitutionById(id);
   }
 
-  // ✅ USER: Update institution (only owner)
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  // ✅ USER (APPROVED): Update institution (only owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Patch(':id')
   updateInstitution(
@@ -70,8 +72,8 @@ export class InstitutionsController {
     return this.institutions.updateInstitution(user.sub, id, dto);
   }
 
-  // ✅ USER: Delete institution (only owner)
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  // ✅ USER (APPROVED): Delete institution (only owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Delete(':id')
   deleteInstitution(@Req() req: any, @Param('id') id: string) {
@@ -83,14 +85,14 @@ export class InstitutionsController {
   // COURSE ENDPOINTS
   // =====================
 
-  // ✅ PUBLIC: Get all courses (browse all)
+  // ✅ PUBLIC: Get all courses from approved institutions
   @Get('courses/all')
   getAllCourses() {
     return this.institutions.getAllCourses();
   }
 
-  // ✅ USER: Create course for institution (only owner)
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  // ✅ USER (APPROVED): Create course for institution (only owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Post(':institutionId/courses')
   createCourse(
@@ -102,7 +104,7 @@ export class InstitutionsController {
     return this.institutions.createCourse(user.sub, institutionId, dto);
   }
 
-  // ✅ PUBLIC: Get all courses for institution
+  // ✅ PUBLIC: Get all courses for an approved institution
   @Get(':institutionId/courses')
   getInstitutionCourses(@Param('institutionId') institutionId: string) {
     return this.institutions.getInstitutionCourses(institutionId);
@@ -114,8 +116,8 @@ export class InstitutionsController {
     return this.institutions.getCourseById(courseId);
   }
 
-  // ✅ USER: Update course (only institution owner)
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  // ✅ USER (APPROVED): Update course (only institution owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Patch('courses/:courseId')
   updateCourse(
@@ -127,8 +129,8 @@ export class InstitutionsController {
     return this.institutions.updateCourse(user.sub, courseId, dto);
   }
 
-  // ✅ USER: Delete course (only institution owner)
-  @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
+  // ✅ USER (APPROVED): Delete course (only institution owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('USER')
   @Delete('courses/:courseId')
   deleteCourse(@Req() req: any, @Param('courseId') courseId: string) {
