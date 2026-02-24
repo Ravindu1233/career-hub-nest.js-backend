@@ -28,8 +28,11 @@ export class AdminController {
 
   // ─────────────────────────────────────────
   // USERS
-  // ⚠️  @Get('users/pending') MUST be before @Get('users/:id')
-  //     otherwise Express matches "pending" as an :id param
+  // ✅ Simplified: SUSPEND and REINSTATE only
+  //    No approve / no reject
+  //    PENDING = user registered, visible to admin, no action required
+  //    SUSPENDED = admin blocked the user
+  //    Reinstate → returns user back to PENDING
   // ─────────────────────────────────────────
 
   @Get('users')
@@ -101,37 +104,7 @@ export class AdminController {
     return user;
   }
 
-  @Patch('users/:id/approve')
-  async approveUser(@Param('id') id: string) {
-    const userId = parseInt(id);
-    await this.prisma.user.update({
-      where: { userId },
-      data: {
-        status: 'APPROVED',
-        rejectionReason: null,
-        reviewedAt: new Date(),
-      },
-    });
-    return { message: 'User approved successfully' };
-  }
-
-  @Patch('users/:id/reject')
-  async rejectUser(@Param('id') id: string, @Body() body: ReviewDto) {
-    if (!body.rejectionReason) {
-      throw new BadRequestException('Rejection reason is required');
-    }
-    const userId = parseInt(id);
-    await this.prisma.user.update({
-      where: { userId },
-      data: {
-        status: 'REJECTED',
-        rejectionReason: body.rejectionReason,
-        reviewedAt: new Date(),
-      },
-    });
-    return { message: 'User rejected' };
-  }
-
+  // ✅ Suspend — works from PENDING or any active state
   @Patch('users/:id/suspend')
   async suspendUser(@Param('id') id: string, @Body() body: ReviewDto) {
     const userId = parseInt(id);
@@ -146,9 +119,28 @@ export class AdminController {
     return { message: 'User suspended' };
   }
 
+  // ✅ Reinstate — only works if currently SUSPENDED, returns to PENDING
+  @Patch('users/:id/reinstate')
+  async reinstateUser(@Param('id') id: string) {
+    const userId = parseInt(id);
+    const user = await this.prisma.user.findUnique({ where: { userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.status !== 'SUSPENDED') {
+      throw new BadRequestException('Only suspended users can be reinstated');
+    }
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        status: 'PENDING',
+        rejectionReason: null,
+        reviewedAt: new Date(),
+      },
+    });
+    return { message: 'User reinstated' };
+  }
+
   // ─────────────────────────────────────────
-  // COMPANIES
-  // ⚠️  @Get('companies/pending') MUST be before @Get('companies/:id')
+  // COMPANIES — full approve / reject / suspend
   // ─────────────────────────────────────────
 
   @Get('companies')
@@ -234,9 +226,8 @@ export class AdminController {
 
   @Patch('companies/:id/reject')
   async rejectCompany(@Param('id') id: string, @Body() body: ReviewDto) {
-    if (!body.rejectionReason) {
+    if (!body.rejectionReason)
       throw new BadRequestException('Rejection reason is required');
-    }
     const companyId = parseInt(id);
     await this.prisma.company.update({
       where: { companyId },
@@ -264,16 +255,13 @@ export class AdminController {
   }
 
   // ─────────────────────────────────────────
-  // JOBS
-  // ⚠️  @Get('jobs/pending') MUST be before @Get('jobs/:id')
+  // JOBS — full approve / reject / suspend
   // ─────────────────────────────────────────
 
   @Get('jobs')
   jobs() {
     return this.prisma.job.findMany({
-      include: {
-        company: { select: { companyId: true, companyName: true } },
-      },
+      include: { company: { select: { companyId: true, companyName: true } } },
       orderBy: { jobDate: 'desc' },
     });
   }
@@ -282,9 +270,7 @@ export class AdminController {
   pendingJobs() {
     return this.prisma.job.findMany({
       where: { status: 'PENDING' },
-      include: {
-        company: { select: { companyId: true, companyName: true } },
-      },
+      include: { company: { select: { companyId: true, companyName: true } } },
       orderBy: { jobDate: 'desc' },
     });
   }
@@ -317,9 +303,8 @@ export class AdminController {
 
   @Patch('jobs/:id/reject')
   async rejectJob(@Param('id') id: string, @Body() body: ReviewDto) {
-    if (!body.rejectionReason) {
+    if (!body.rejectionReason)
       throw new BadRequestException('Rejection reason is required');
-    }
     await this.prisma.job.update({
       where: { id },
       data: {
@@ -345,8 +330,7 @@ export class AdminController {
   }
 
   // ─────────────────────────────────────────
-  // INSTITUTIONS
-  // ⚠️  @Get('institutions/pending') MUST be before @Get('institutions/:id')
+  // INSTITUTIONS — full approve / reject / suspend
   // ─────────────────────────────────────────
 
   @Get('institutions')
@@ -354,7 +338,7 @@ export class AdminController {
     return this.prisma.institution.findMany({
       include: {
         user: { select: { userId: true, email: true } },
-        courses: true, // ✅ included so list page can show course count if needed
+        courses: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -364,20 +348,18 @@ export class AdminController {
   pendingInstitutions() {
     return this.prisma.institution.findMany({
       where: { status: 'PENDING' },
-      include: {
-        user: { select: { userId: true, email: true } },
-      },
+      include: { user: { select: { userId: true, email: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  @Get('institutions/:id') // ✅ After pending — NEW endpoint
+  @Get('institutions/:id') // ✅ After pending
   async getInstitution(@Param('id') id: string) {
     const institution = await this.prisma.institution.findUnique({
       where: { id },
       include: {
         user: { select: { userId: true, email: true } },
-        courses: true, // ✅ full courses for detail page table
+        courses: true,
       },
     });
     if (!institution) throw new NotFoundException('Institution not found');
@@ -399,9 +381,8 @@ export class AdminController {
 
   @Patch('institutions/:id/reject')
   async rejectInstitution(@Param('id') id: string, @Body() body: ReviewDto) {
-    if (!body.rejectionReason) {
+    if (!body.rejectionReason)
       throw new BadRequestException('Rejection reason is required');
-    }
     await this.prisma.institution.update({
       where: { id },
       data: {
@@ -427,7 +408,7 @@ export class AdminController {
   }
 
   // ─────────────────────────────────────────
-  // APPLICATIONS (read-only for admin)
+  // APPLICATIONS (read-only)
   // ─────────────────────────────────────────
 
   @Get('applications')
