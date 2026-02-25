@@ -25,13 +25,14 @@ import { JwtPayload } from '../common/types/jwt-payload.type';
 export class JobsController {
   constructor(private jobs: JobsService) {}
 
-  //  PUBLIC: Only APPROVED jobs from APPROVED companies
+  // ✅ PUBLIC: Only APPROVED jobs from APPROVED companies
   @Get()
   list() {
     return this.jobs.listAll();
   }
 
-  //  COMPANY: My jobs (all statuses) — MUST be BEFORE /company/:companyId
+  // ✅ COMPANY: My own jobs (all statuses — they see their own pending/rejected)
+  //    MUST be BEFORE /company/:companyId to avoid route conflict
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
   @AccountTypeRequired('COMPANY')
   @Get('company/me')
@@ -40,19 +41,22 @@ export class JobsController {
     return this.jobs.listCompanyJobs(user.sub);
   }
 
-  //  PUBLIC: Jobs by company ID (approved only — filtered in service)
+  // ✅ PUBLIC: Jobs by company ID
+  //    Only APPROVED jobs from APPROVED company — handled in service
+  //    If company edited profile (now PENDING), returns empty array
   @Get('company/:companyId')
   listByCompany(@Param('companyId', ParseIntPipe) companyId: number) {
-    return this.jobs.listCompanyJobs(companyId);
+    return this.jobs.listByCompany(companyId);
   }
 
-  // PUBLIC: Single job (approved only — filtered in service)
+  // ✅ PUBLIC: Single job
+  //    Only if BOTH job and company are APPROVED — handled in service
   @Get(':id')
   get(@Param('id') id: string) {
     return this.jobs.getById(id);
   }
 
-  // COMPANY (APPROVED): Create job — starts as PENDING
+  // ✅ COMPANY (APPROVED): Create job — starts as PENDING, admin must approve
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('COMPANY')
   @Post()
@@ -61,7 +65,7 @@ export class JobsController {
     return this.jobs.create(user.sub, dto);
   }
 
-  //  COMPANY (APPROVED): Update own job
+  // ✅ COMPANY (APPROVED): Update own job — resets job to PENDING for re-approval
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('COMPANY')
   @Patch(':id')
@@ -70,7 +74,7 @@ export class JobsController {
     return this.jobs.update(user.sub, id, dto);
   }
 
-  // COMPANY (APPROVED): Delete own job
+  // ✅ COMPANY (APPROVED): Delete own job
   @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
   @AccountTypeRequired('COMPANY')
   @Delete(':id')

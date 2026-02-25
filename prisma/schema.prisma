@@ -91,13 +91,13 @@ model Company {
   companyId       Int      @id @default(autoincrement()) @map("company_id")
   companyName     String   @map("company_name") @db.VarChar(255)
   email           String   @unique @db.VarChar(255)
-  description     String?  @db.VarChar(255)
+  description      String?  @db.Text        
   address         String?  @db.VarChar(255)
   phone           String?  @db.VarChar(255)
   location        String?  @db.VarChar(255)
   companySize     String?  @db.VarChar(255)
   founded         DateTime? @db.Timestamp(6)
-  benefitsAndPerks String? @db.VarChar(255)
+  benefitsAndPerks String?  @db.Text 
   profilePic      String?  @map("profile_pic") @db.VarChar(255)
   industry        String?  @db.VarChar(255)
   passwordHash    String   @map("password") @db.VarChar(255)

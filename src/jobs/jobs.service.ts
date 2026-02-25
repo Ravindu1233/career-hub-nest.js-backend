@@ -8,6 +8,7 @@ import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 
 // Full company fields needed by the frontend JobDetails page
+// ✅ status included so getById can verify company is still APPROVED
 const companySelect = {
   companyId: true,
   companyName: true,
@@ -18,33 +19,32 @@ const companySelect = {
   benefitsAndPerks: true,
   location: true,
   profilePic: true,
+  status: true, // ✅ needed to block jobs from PENDING companies
 };
 
 @Injectable()
 export class JobsService {
   constructor(private prisma: PrismaService) {}
 
-  //  PUBLIC: Only show APPROVED jobs from APPROVED companies
-  //  Also exclude expired (deadline passed) jobs
+  // ✅ PUBLIC: Only show APPROVED jobs from APPROVED companies
+  //    Both conditions must be true — if company goes PENDING after editing
+  //    their profile, their jobs disappear from public automatically
   listAll() {
     return this.prisma.job.findMany({
       where: {
         status: 'APPROVED',
-        company: { status: 'APPROVED' },
-        OR: [
-          { deadline: null }, // no deadline = always visible
-          { deadline: { gt: new Date() } }, // deadline in the future
-        ],
+        company: { status: 'APPROVED' }, // ✅ company must also be approved
+        OR: [{ deadline: null }, { deadline: { gt: new Date() } }],
       },
       include: {
         company: { select: companySelect },
-        _count: { select: { applications: true } }, // applicant count
+        _count: { select: { applications: true } },
       },
       orderBy: { jobDate: 'desc' },
     });
   }
 
-  // PUBLIC: Get single job — only if approved and not expired
+  // ✅ PUBLIC: Get single job — only if BOTH job and company are APPROVED
   async getById(id: string) {
     const job = await this.prisma.job.findUnique({
       where: { id },
@@ -54,11 +54,15 @@ export class JobsService {
       },
     });
 
-    if (!job || job.status !== 'APPROVED') {
+    // ✅ Check both job status AND company status
+    if (
+      !job ||
+      job.status !== 'APPROVED' ||
+      (job.company as any)?.status !== 'APPROVED' // guard: company went PENDING
+    ) {
       throw new NotFoundException('Job not found');
     }
 
-    // Block access if deadline passed
     if (job.deadline && new Date() > job.deadline) {
       throw new NotFoundException('This job listing has expired');
     }
@@ -66,7 +70,6 @@ export class JobsService {
     return {
       ...job,
       applicantCount: job.applications.length,
-      // isFull: true means apply button should be disabled on frontend
       isFull:
         job.maxApplicants != null
           ? job.applications.length >= job.maxApplicants
@@ -74,7 +77,25 @@ export class JobsService {
     };
   }
 
-  // COMPANY: List own jobs (all statuses — so they see pending/rejected)
+  // ✅ PUBLIC: Jobs by company ID — only APPROVED jobs from APPROVED company
+  //    If company is PENDING (edited profile), returns empty array
+  listByCompany(companyId: number) {
+    return this.prisma.job.findMany({
+      where: {
+        companyId,
+        status: 'APPROVED',
+        company: { status: 'APPROVED' }, // ✅ company must be approved too
+        OR: [{ deadline: null }, { deadline: { gt: new Date() } }],
+      },
+      include: {
+        company: { select: companySelect },
+        _count: { select: { applications: true } },
+      },
+      orderBy: { jobDate: 'desc' },
+    });
+  }
+
+  // ✅ COMPANY: List own jobs (all statuses — so they see pending/rejected/approved)
   listCompanyJobs(companyId: number) {
     return this.prisma.job.findMany({
       where: { companyId },
@@ -85,7 +106,7 @@ export class JobsService {
     });
   }
 
-  //  COMPANY: Create job — defaults to PENDING via schema
+  // ✅ COMPANY: Create job — defaults to PENDING via schema
   async create(companyId: number, dto: CreateJobDto) {
     return this.prisma.job.create({
       data: {
@@ -111,7 +132,7 @@ export class JobsService {
     });
   }
 
-  //  COMPANY: Update own job
+  // ✅ COMPANY: Update own job — resets to PENDING for re-approval
   async update(companyId: number, jobId: string, dto: UpdateJobDto) {
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
@@ -131,11 +152,15 @@ export class JobsService {
         requirements: dto.requirements ?? undefined,
         deadline: dto.deadline ? new Date(dto.deadline) : undefined,
         maxApplicants: dto.maxApplicants ?? undefined,
+        // ✅ Reset job to PENDING when edited — admin must re-approve
+        status: 'PENDING',
+        rejectionReason: null,
+        reviewedAt: null,
       },
     });
   }
 
-  // COMPANY: Delete own job
+  // ✅ COMPANY: Delete own job
   async remove(companyId: number, jobId: string) {
     const job = await this.prisma.job.findUnique({ where: { id: jobId } });
     if (!job) throw new NotFoundException('Job not found');
@@ -145,8 +170,7 @@ export class JobsService {
     return this.prisma.job.delete({ where: { id: jobId } });
   }
 
-  // SCHEDULER: Delete all jobs whose deadline has passed
-  // Called automatically every hour by JobsScheduler
+  // ✅ SCHEDULER: Delete all jobs whose deadline has passed
   async deleteExpiredJobs(): Promise<number> {
     const result = await this.prisma.job.deleteMany({
       where: {

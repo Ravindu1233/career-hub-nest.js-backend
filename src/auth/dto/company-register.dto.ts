@@ -1,4 +1,10 @@
-import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  MinLength,
+  IsDateString,
+} from 'class-validator';
 
 export class CompanyRegisterDto {
   @IsEmail() email: string;
@@ -14,4 +20,7 @@ export class CompanyRegisterDto {
   @IsOptional() @IsString() companySize?: string;
   @IsOptional() @IsString() benefitsAndPerks?: string;
   @IsOptional() @IsString() profilePic?: string;
+  @IsOptional()
+  @IsDateString()
+  founded?: string;
 }
