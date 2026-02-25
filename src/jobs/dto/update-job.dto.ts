@@ -2,8 +2,10 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsInt,
   IsOptional,
   IsString,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -33,14 +35,12 @@ export class UpdateJobDto {
   @MinLength(5)
   jobDescription?: string;
 
-  //  MULTI responsibilities
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
   @IsString({ each: true })
   responsibilities?: string[];
 
-  //  MULTI skills
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
@@ -52,8 +52,13 @@ export class UpdateJobDto {
   @MinLength(5)
   requirements?: string;
 
-  //  Deadline
   @IsOptional()
   @IsDateString()
   deadline?: string;
+
+  // ← Max number of applicants allowed (optional)
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxApplicants?: number;
 }

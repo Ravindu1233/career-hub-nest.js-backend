@@ -53,58 +53,13 @@ export class AdminController {
     });
   }
 
-  @Get('users/pending') // ✅ MUST be before users/:id
-  pendingUsers() {
-    return this.prisma.user.findMany({
-      where: { status: 'PENDING' },
-      select: {
-        userId: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        mobile: true,
-        profilePic: true,
-        status: true,
-      },
-      orderBy: { userId: 'desc' },
-    });
-  }
+  // ❌ DELETE the entire pendingUsers() endpoint
 
-  @Get('users/:id') // ✅ After pending
+  @Get('users/:id')
   async getUser(@Param('id') id: string) {
-    const userId = parseInt(id);
-    const user = await this.prisma.user.findUnique({
-      where: { userId },
-      select: {
-        userId: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        mobile: true,
-        address: true,
-        bio: true,
-        skills: true,
-        schools: true,
-        dob: true,
-        profilePic: true,
-        status: true,
-        rejectionReason: true,
-        reviewedAt: true,
-        applications: {
-          select: {
-            id: true,
-            status: true,
-            job: { select: { jobTitle: true } },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-      },
-    });
-    if (!user) throw new NotFoundException('User not found');
-    return user;
+    // ... no changes needed here
   }
 
-  // ✅ Suspend — works from PENDING or any active state
   @Patch('users/:id/suspend')
   async suspendUser(@Param('id') id: string, @Body() body: ReviewDto) {
     const userId = parseInt(id);
@@ -119,7 +74,6 @@ export class AdminController {
     return { message: 'User suspended' };
   }
 
-  // ✅ Reinstate — only works if currently SUSPENDED, returns to PENDING
   @Patch('users/:id/reinstate')
   async reinstateUser(@Param('id') id: string) {
     const userId = parseInt(id);
@@ -131,7 +85,7 @@ export class AdminController {
     await this.prisma.user.update({
       where: { userId },
       data: {
-        status: 'PENDING',
+        status: 'ACTIVE', // ← was PENDING
         rejectionReason: null,
         reviewedAt: new Date(),
       },

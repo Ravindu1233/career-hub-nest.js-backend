@@ -16,6 +16,7 @@ enum ApprovalStatus {
   APPROVED
   REJECTED
   SUSPENDED
+  ACTIVE 
 }
 
 // =====================
@@ -72,7 +73,7 @@ model User {
   profilePic String? @map("profile_pic") @db.VarChar(255)
 
   //  Approval fields
-  status          ApprovalStatus @default(PENDING)
+  status  ApprovalStatus @default(ACTIVE)  
   rejectionReason String?        @map("rejection_reason") @db.VarChar(1000)
   reviewedAt      DateTime?      @map("reviewed_at") @db.Timestamp(6)
   reviewedByAdminId Int?         @map("reviewed_by_admin_id")
@@ -132,6 +133,7 @@ model Job {
 
   deadline DateTime? @db.Timestamp(6)
   jobDate  DateTime  @default(now())
+  maxApplicants  Int?      @map("max_applicants")
 
   //  Approval fields
   status            ApprovalStatus @default(PENDING)

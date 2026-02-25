@@ -18,20 +18,34 @@ export class ApplicationsService {
     dto: CreateApplicationDto,
     cvPath: string,
   ) {
-    // Check if job exists
-    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+    // Check if job exists and is approved
+    const job = await this.prisma.job.findUnique({
+      where: { id: jobId },
+      include: { _count: { select: { applications: true } } },
+    });
     if (!job) throw new NotFoundException('Job not found');
+    if (job.status !== 'APPROVED')
+      throw new BadRequestException('This job is not accepting applications');
 
     // Check if deadline has passed
     if (job.deadline && new Date() > job.deadline) {
       throw new BadRequestException('Application deadline has passed');
     }
 
+    // Check if max applicants reached
+    if (
+      job.maxApplicants != null &&
+      job._count.applications >= job.maxApplicants
+    ) {
+      throw new BadRequestException(
+        'This job has reached its maximum number of applicants',
+      );
+    }
+
     // Check if user already applied
     const existing = await this.prisma.application.findUnique({
       where: { jobId_userId: { jobId, userId } },
     });
-
     if (existing) {
       throw new BadRequestException('You have already applied to this job');
     }
@@ -42,7 +56,7 @@ export class ApplicationsService {
         userId,
         cvPath,
         coverLetter: dto.coverLetter,
-        status: 'PENDING', // Default status is PENDING
+        status: 'PENDING',
       },
       include: {
         job: {
@@ -180,7 +194,6 @@ export class ApplicationsService {
 
     if (!application) throw new NotFoundException('Application not found');
 
-    // Authorization check
     if (accountType === 'USER' && application.userId !== userId) {
       throw new ForbiddenException('Not authorized to view this application');
     }
@@ -194,10 +207,9 @@ export class ApplicationsService {
 
   async updateStatus(
     companyId: number,
-    applicationId: string, // ✅ Remove '| undefined' - controller guarantees it exists
+    applicationId: string,
     dto: UpdateApplicationDto,
   ) {
-    // Remove the undefined check since it's now guaranteed to be a string
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },
       include: { job: true },
@@ -205,12 +217,10 @@ export class ApplicationsService {
 
     if (!application) throw new NotFoundException('Application not found');
 
-    // Ensure the company owns the job
     if (application.job.companyId !== companyId) {
       throw new ForbiddenException('Not authorized to update this application');
     }
 
-    // Check if the new status is one of the allowed ones
     const validStatuses = [
       'PENDING',
       'REJECTED',
@@ -238,6 +248,7 @@ export class ApplicationsService {
       },
     });
   }
+
   // ✅ Withdraw application (User only)
   async withdraw(userId: number, applicationId: string) {
     const application = await this.prisma.application.findUnique({
