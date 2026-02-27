@@ -57,9 +57,37 @@ export class AdminController {
 
   @Get('users/:id')
   async getUser(@Param('id') id: string) {
-    // ... no changes needed here
+    const userId = parseInt(id);
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: {
+        userId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        mobile: true,
+        address: true,
+        bio: true,
+        skills: true,
+        schools: true,
+        dob: true,
+        profilePic: true,
+        status: true,
+        rejectionReason: true,
+        reviewedAt: true,
+        applications: {
+          select: {
+            id: true,
+            status: true,
+            job: { select: { jobTitle: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    return user;
   }
-
   @Patch('users/:id/suspend')
   async suspendUser(@Param('id') id: string, @Body() body: ReviewDto) {
     const userId = parseInt(id);
@@ -135,7 +163,7 @@ export class AdminController {
     });
   }
 
-  @Get('companies/:id') // ✅ After pending
+  @Get('companies/:id')
   async getCompany(@Param('id') id: string) {
     const companyId = parseInt(id);
     const company = await this.prisma.company.findUnique({
@@ -154,6 +182,7 @@ export class AdminController {
         status: true,
         rejectionReason: true,
         reviewedAt: true,
+        benefitsAndPerks: true, // ✅ add this
         jobs: {
           select: { id: true, jobTitle: true, status: true },
           orderBy: { jobDate: 'desc' },
