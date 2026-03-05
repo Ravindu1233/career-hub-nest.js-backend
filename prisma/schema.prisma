@@ -81,6 +81,7 @@ model User {
   applications Application[]
   institutions Institution[]
   savedJobs SavedJob[]
+  notifications Notification[]
 
   @@map("user")
 }
@@ -112,6 +113,7 @@ model Company {
   reviewedByAdminId Int?           @map("reviewed_by_admin_id")
 
   jobs Job[]
+  notifications Notification[]
 
   @@map("company")
 }
@@ -256,4 +258,25 @@ model SavedJob {
   @@unique([userId, jobId])
   @@index([userId])
   @@map("saved_job")
+}
+
+// =====================
+// Notification
+// =====================
+model Notification {
+  id        String   @id @default(uuid())
+  userId    Int?     @map("user_id")
+  companyId Int?     @map("company_id")
+  title     String   @db.VarChar(255)
+  message   String   @db.VarChar(1000)
+  type      String   @db.VarChar(50)
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User?    @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([companyId])
+  @@map("notification")
 }

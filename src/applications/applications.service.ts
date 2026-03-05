@@ -7,10 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
+import { NotificationsService } from '../notifications/notifications.service'; // ← ADD
 
 @Injectable()
 export class ApplicationsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService, // ← ADD
+  ) {}
 
   async create(
     userId: number,
@@ -21,7 +25,10 @@ export class ApplicationsService {
     // Check if job exists and is approved
     const job = await this.prisma.job.findUnique({
       where: { id: jobId },
-      include: { _count: { select: { applications: true } } },
+      include: {
+        _count: { select: { applications: true } },
+        company: { select: { companyId: true, companyName: true } },
+      },
     });
     if (!job) throw new NotFoundException('Job not found');
     if (job.status !== 'APPROVED')
@@ -50,7 +57,7 @@ export class ApplicationsService {
       throw new BadRequestException('You have already applied to this job');
     }
 
-    return this.prisma.application.create({
+    const application = await this.prisma.application.create({
       data: {
         jobId,
         userId,
@@ -67,6 +74,24 @@ export class ApplicationsService {
         },
       },
     });
+
+    // ✅ Notify the user — application submitted
+    await this.notifications.createForUser(
+      userId,
+      'Application Submitted',
+      `Your application for "${job.jobTitle}" at ${job.company.companyName} was submitted successfully.`,
+      'APPLICATION_SUBMITTED',
+    );
+
+    // ✅ Notify the company — new application received
+    await this.notifications.createForCompany(
+      job.companyId,
+      'New Application Received',
+      `A new application was submitted for your job "${job.jobTitle}".`,
+      'NEW_APPLICATION_RECEIVED',
+    );
+
+    return application;
   }
 
   // ✅ Get user's applications
@@ -212,7 +237,10 @@ export class ApplicationsService {
   ) {
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },
-      include: { job: true },
+      include: {
+        job: { select: { companyId: true, jobTitle: true } },
+        user: { select: { userId: true } },
+      },
     });
 
     if (!application) throw new NotFoundException('Application not found');
@@ -233,7 +261,7 @@ export class ApplicationsService {
       );
     }
 
-    return this.prisma.application.update({
+    const updated = await this.prisma.application.update({
       where: { id: applicationId },
       data: { status: dto.status },
       include: {
@@ -247,6 +275,24 @@ export class ApplicationsService {
         },
       },
     });
+
+    // ✅ Notify the user — status changed
+    const statusMessages: Record<string, string> = {
+      REJECTED: `Unfortunately, your application for "${application.job.jobTitle}" was not successful.`,
+      INTERVIEW_SCHEDULED: `Congratulations! You have been selected for an interview for "${application.job.jobTitle}".`,
+      SHORTLISTED: `Great news! You have been shortlisted for "${application.job.jobTitle}".`,
+      PENDING: `Your application for "${application.job.jobTitle}" status has been updated.`,
+    };
+
+    await this.notifications.createForUser(
+      application.user.userId,
+      'Application Status Updated',
+      statusMessages[dto.status] ??
+        `Your application status is now: ${dto.status}.`,
+      'APPLICATION_STATUS_CHANGED',
+    );
+
+    return updated;
   }
 
   // ✅ Withdraw application (User only)

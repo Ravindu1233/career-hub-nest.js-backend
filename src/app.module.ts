@@ -17,6 +17,7 @@ import { CoursesModule } from './courses/courses.module';
 import { InstitutionsModule } from './institutions/institutions.module';
 import { ApprovedGuard } from './common/guards/approved.guard';
 import { SavedJobsModule } from './saved-jobs/saved-jobs.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SavedJobsModule } from './saved-jobs/saved-jobs.module';
     CoursesModule,
     InstitutionsModule,
     SavedJobsModule,
+    NotificationsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
