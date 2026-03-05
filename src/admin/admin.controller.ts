@@ -30,10 +30,15 @@ export class AdminController {
     private notifications: NotificationsService,
   ) {}
 
+  private getRequiredRejectionReason(body: ReviewDto) {
+    const reason = body.rejectionReason?.trim();
+    if (!reason) throw new BadRequestException('Rejection reason is required');
+    return reason;
+  }
+
   // ─────────────────────────────────────────
   // USERS
-  // ✅ Simplified: SUSPEND and REINSTATE only
-  //    No approve / no reject
+  // ✅ Users: reject / suspend / reinstate
   //    PENDING = user registered, visible to admin, no action required
   //    SUSPENDED = admin blocked the user
   //    Reinstate → returns user back to PENDING
@@ -104,6 +109,36 @@ export class AdminController {
       },
     });
     return { message: 'User suspended' };
+  }
+
+  @Patch('users/:id/reject')
+  async rejectUser(@Param('id') id: string, @Body() body: ReviewDto) {
+    const userId = parseInt(id);
+    const reason = this.getRequiredRejectionReason(body);
+
+    const user = await this.prisma.user.findUnique({
+      where: { userId },
+      select: { userId: true, email: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    await this.prisma.user.update({
+      where: { userId },
+      data: {
+        status: 'REJECTED',
+        rejectionReason: reason,
+        reviewedAt: new Date(),
+      },
+    });
+
+    await this.notifications.createForUser(
+      userId,
+      'Account Rejected',
+      `Your account has been rejected. Reason: ${reason}`,
+      'USER_REJECTED',
+    );
+
+    return { message: 'User rejected' };
   }
 
   @Patch('users/:id/reinstate')
@@ -226,17 +261,31 @@ export class AdminController {
 
   @Patch('companies/:id/reject')
   async rejectCompany(@Param('id') id: string, @Body() body: ReviewDto) {
-    if (!body.rejectionReason)
-      throw new BadRequestException('Rejection reason is required');
     const companyId = parseInt(id);
+    const reason = this.getRequiredRejectionReason(body);
+
+    const company = await this.prisma.company.findUnique({
+      where: { companyId },
+      select: { companyId: true, companyName: true },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+
     await this.prisma.company.update({
       where: { companyId },
       data: {
         status: 'REJECTED',
-        rejectionReason: body.rejectionReason,
+        rejectionReason: reason,
         reviewedAt: new Date(),
       },
     });
+
+    await this.notifications.createForCompany(
+      companyId,
+      'Company Rejected',
+      `Your company "${company.companyName}" has been rejected. Reason: ${reason}`,
+      'COMPANY_REJECTED',
+    );
+
     return { message: 'Company rejected' };
   }
 
@@ -321,16 +370,30 @@ export class AdminController {
 
   @Patch('jobs/:id/reject')
   async rejectJob(@Param('id') id: string, @Body() body: ReviewDto) {
-    if (!body.rejectionReason)
-      throw new BadRequestException('Rejection reason is required');
+    const reason = this.getRequiredRejectionReason(body);
+
+    const job = await this.prisma.job.findUnique({
+      where: { id },
+      select: { id: true, jobTitle: true, companyId: true },
+    });
+    if (!job) throw new NotFoundException('Job not found');
+
     await this.prisma.job.update({
       where: { id },
       data: {
         status: 'REJECTED',
-        rejectionReason: body.rejectionReason,
+        rejectionReason: reason,
         reviewedAt: new Date(),
       },
     });
+
+    await this.notifications.createForCompany(
+      job.companyId,
+      'Job Rejected',
+      `Your job "${job.jobTitle}" has been rejected. Reason: ${reason}`,
+      'JOB_REJECTED',
+    );
+
     return { message: 'Job rejected' };
   }
 
@@ -399,16 +462,30 @@ export class AdminController {
 
   @Patch('institutions/:id/reject')
   async rejectInstitution(@Param('id') id: string, @Body() body: ReviewDto) {
-    if (!body.rejectionReason)
-      throw new BadRequestException('Rejection reason is required');
+    const reason = this.getRequiredRejectionReason(body);
+
+    const institution = await this.prisma.institution.findUnique({
+      where: { id },
+      select: { id: true, name: true, userId: true },
+    });
+    if (!institution) throw new NotFoundException('Institution not found');
+
     await this.prisma.institution.update({
       where: { id },
       data: {
         status: 'REJECTED',
-        rejectionReason: body.rejectionReason,
+        rejectionReason: reason,
         reviewedAt: new Date(),
       },
     });
+
+    await this.notifications.createForUser(
+      institution.userId,
+      'Institution Rejected',
+      `Your institution "${institution.name}" has been rejected. Reason: ${reason}`,
+      'INSTITUTION_REJECTED',
+    );
+
     return { message: 'Institution rejected' };
   }
 

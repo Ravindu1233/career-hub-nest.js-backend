@@ -6,6 +6,7 @@ export type NotificationType =
   | 'APPLICATION_SUBMITTED'
   | 'APPLICATION_STATUS_CHANGED'
   | 'INTERVIEW_SCHEDULED'
+  | 'USER_REJECTED'
   | 'INSTITUTION_APPROVED'
   | 'INSTITUTION_REJECTED'
   // Company notifications
