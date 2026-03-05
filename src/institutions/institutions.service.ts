@@ -124,7 +124,12 @@ export class InstitutionsService {
 
     return this.prisma.institution.update({
       where: { id: institutionId },
-      data: dto,
+      data: {
+        ...dto,
+        status: 'PENDING',
+        rejectionReason: null,
+        reviewedAt: null,
+      },
       include: { courses: true },
     });
   }

@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AccountTypeRequired } from '../common/decorators/account-type.decorator';
 import { AccountTypeGuard } from '../common/guards/account-type.guard';
 import { IsOptional, IsString } from 'class-validator';
+import { NotificationsService } from '../notifications/notifications.service';
 
 class ReviewDto {
   @IsOptional()
@@ -24,7 +25,10 @@ class ReviewDto {
 @UseGuards(AuthGuard('jwt'), AccountTypeGuard)
 @AccountTypeRequired('ADMIN')
 export class AdminController {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notifications: NotificationsService,
+  ) {}
 
   // ─────────────────────────────────────────
   // USERS
@@ -196,6 +200,12 @@ export class AdminController {
   @Patch('companies/:id/approve')
   async approveCompany(@Param('id') id: string) {
     const companyId = parseInt(id);
+    const company = await this.prisma.company.findUnique({
+      // ← fetch name first
+      where: { companyId },
+      select: { companyName: true },
+    });
+    if (!company) throw new NotFoundException('Company not found');
     await this.prisma.company.update({
       where: { companyId },
       data: {
@@ -204,6 +214,13 @@ export class AdminController {
         reviewedAt: new Date(),
       },
     });
+    await this.notifications.createForCompany(
+      // ← send notification
+      companyId,
+      'Company Approved',
+      `Your company "${company.companyName}" has been approved. You can now post jobs.`,
+      'COMPANY_APPROVED',
+    );
     return { message: 'Company approved successfully' };
   }
 
@@ -273,6 +290,16 @@ export class AdminController {
 
   @Patch('jobs/:id/approve')
   async approveJob(@Param('id') id: string) {
+    const job = await this.prisma.job.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        jobTitle: true,
+        companyId: true,
+      },
+    });
+    if (!job) throw new NotFoundException('Job not found');
+
     await this.prisma.job.update({
       where: { id },
       data: {
@@ -281,6 +308,14 @@ export class AdminController {
         reviewedAt: new Date(),
       },
     });
+
+    await this.notifications.createForCompany(
+      job.companyId,
+      'Job Approved',
+      `Your job "${job.jobTitle}" has been approved and is now visible to candidates.`,
+      'JOB_APPROVED',
+    );
+
     return { message: 'Job approved successfully' };
   }
 
