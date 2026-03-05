@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../common/storage/storage.service';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
 import { CreateCourseDto } from '../courses/dto/create-course.dto';
@@ -11,7 +12,10 @@ import { UpdateCourseDto } from '../courses/dto/update-course.dto';
 
 @Injectable()
 export class InstitutionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   // =====================
   // INSTITUTION CRUD
@@ -122,6 +126,65 @@ export class InstitutionsService {
       where: { id: institutionId },
       data: dto,
       include: { courses: true },
+    });
+  }
+
+  // USER: Upload/update institution logo (only owner)
+  async updateInstitutionLogo(
+    userId: number,
+    institutionId: string,
+    filename: string,
+  ) {
+    const institution = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
+
+    if (!institution) throw new NotFoundException('Institution not found');
+
+    if (institution.userId !== userId) {
+      throw new ForbiddenException(
+        'Not authorized to update this institution logo',
+      );
+    }
+
+    const newPath = `/uploads/institutions/${filename}`;
+    if (institution.logo) await this.storage.deleteIfExists(institution.logo);
+
+    return this.prisma.institution.update({
+      where: { id: institutionId },
+      data: { logo: newPath },
+      select: {
+        id: true,
+        name: true,
+        logo: true,
+      },
+    });
+  }
+
+  // USER: Delete institution logo (only owner)
+  async deleteInstitutionLogo(userId: number, institutionId: string) {
+    const institution = await this.prisma.institution.findUnique({
+      where: { id: institutionId },
+    });
+
+    if (!institution) throw new NotFoundException('Institution not found');
+
+    if (institution.userId !== userId) {
+      throw new ForbiddenException(
+        'Not authorized to delete this institution logo',
+      );
+    }
+
+    if (institution.logo) await this.storage.deleteIfExists(institution.logo);
+
+    return this.prisma.institution.update({
+      where: { id: institutionId },
+      data: { logo: null },
+      select: {
+        id: true,
+        name: true,
+        logo: true,
+      },
     });
   }
 

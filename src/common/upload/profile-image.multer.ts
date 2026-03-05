@@ -8,7 +8,7 @@ function ensureDir(path: string) {
 }
 
 export function profileImageMulterOptions(
-  folder: 'users' | 'companies' | 'admins',
+  folder: 'users' | 'companies' | 'admins' | 'institutions',
 ) {
   return {
     storage: diskStorage({

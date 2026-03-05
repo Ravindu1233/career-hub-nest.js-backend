@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,9 +8,12 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InstitutionsService } from './institutions.service';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
@@ -19,6 +23,8 @@ import { AccountTypeRequired } from '../common/decorators/account-type.decorator
 import { AccountTypeGuard } from '../common/guards/account-type.guard';
 import { ApprovedGuard } from '../common/guards/approved.guard';
 import { JwtPayload } from '../common/types/jwt-payload.type';
+import { profileImageMulterOptions } from '../common/upload/profile-image.multer';
+import { resizeOnDisk } from '../common/upload/sharp.util';
 
 @Controller('institutions')
 export class InstitutionsController {
@@ -70,6 +76,35 @@ export class InstitutionsController {
   ) {
     const user = req.user as JwtPayload;
     return this.institutions.updateInstitution(user.sub, id, dto);
+  }
+
+  // ✅ USER (APPROVED): Upload institution logo (only owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
+  @AccountTypeRequired('USER')
+  @Post(':id/logo')
+  @UseInterceptors(
+    FileInterceptor('image', profileImageMulterOptions('institutions')),
+  )
+  async uploadInstitutionLogo(
+    @Req() req: any,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Logo image is required');
+
+    const user = req.user as JwtPayload;
+    await resizeOnDisk(file.path, 600);
+
+    return this.institutions.updateInstitutionLogo(user.sub, id, file.filename);
+  }
+
+  // ✅ USER (APPROVED): Delete institution logo (only owner)
+  @UseGuards(AuthGuard('jwt'), AccountTypeGuard, ApprovedGuard)
+  @AccountTypeRequired('USER')
+  @Delete(':id/logo')
+  deleteInstitutionLogo(@Req() req: any, @Param('id') id: string) {
+    const user = req.user as JwtPayload;
+    return this.institutions.deleteInstitutionLogo(user.sub, id);
   }
 
   // ✅ USER (APPROVED): Delete institution (only owner)
