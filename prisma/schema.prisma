@@ -80,6 +80,7 @@ model User {
 
   applications Application[]
   institutions Institution[]
+  savedJobs SavedJob[]
 
   @@map("user")
 }
@@ -143,6 +144,7 @@ model Job {
 
   company      Company       @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
   applications Application[]
+  savedBy SavedJob[]
 
   @@index([companyId])
 }
@@ -237,4 +239,21 @@ model Course {
 
   @@index([institutionId])
   @@map("course")
+}
+
+// =====================
+// SavedJob - User bookmarks a Job
+// =====================
+model SavedJob {
+  id        String   @id @default(uuid())
+  userId    Int      @map("user_id")
+  jobId     String   @map("job_id")
+  savedAt   DateTime @default(now()) @map("saved_at")
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  job  Job  @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, jobId])
+  @@index([userId])
+  @@map("saved_job")
 }
