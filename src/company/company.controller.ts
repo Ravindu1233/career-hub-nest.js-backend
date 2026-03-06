@@ -118,7 +118,7 @@ export class CompanyController {
   }
 
   /**
-   * AUTH (COMPANY ONLY + APPROVED/ACTIVE): update my company profile
+   * AUTH (COMPANY ONLY + APPROVED/ACTIVE/REJECTED): update my company profile
    * PATCH /companies/me
    *
    * ✅ After a successful edit:
@@ -149,16 +149,15 @@ export class CompanyController {
 
     if (!existing) throw new NotFoundException('Company not found');
 
-    // ✅ Only APPROVED or ACTIVE companies can edit their profile
-    if (existing.status !== 'APPROVED' && existing.status !== 'ACTIVE') {
+    // ✅ Only APPROVED, ACTIVE, or REJECTED companies can edit their profile
+    const editableStatuses = ['APPROVED', 'ACTIVE', 'REJECTED'];
+    if (!editableStatuses.includes(existing.status)) {
       throw new ForbiddenException(
-        existing.status === 'PENDING'
-          ? 'Your company is pending admin approval. You cannot edit your profile yet.'
-          : existing.status === 'REJECTED'
-            ? `Your company has been rejected. Reason: ${existing.rejectionReason ?? 'No reason provided'}`
-            : existing.status === 'SUSPENDED'
-              ? `Your company has been suspended. ${existing.rejectionReason ? 'Reason: ' + existing.rejectionReason : ''}`
-              : 'Your company account is not active.',
+        existing.status === 'REJECTED'
+          ? `Your company has been rejected. Reason: ${existing.rejectionReason ?? 'No reason provided'}`
+          : existing.status === 'SUSPENDED'
+            ? `Your company has been suspended. ${existing.rejectionReason ? 'Reason: ' + existing.rejectionReason : ''}`
+            : 'Your company account is not active.',
       );
     }
 
@@ -190,9 +189,15 @@ export class CompanyController {
     // ✅ Reset company to PENDING — admin must re-approve before it's public again
     // ✅ Jobs are NOT modified — they stay APPROVED but are hidden because
     //    the public job query filters by company.status === 'APPROVED'
-    updateData.status = 'PENDING';
-    updateData.rejectionReason = null;
-    updateData.reviewedAt = null;
+    if (
+      existing.status === 'APPROVED' ||
+      existing.status === 'ACTIVE' ||
+      existing.status === 'REJECTED'
+    ) {
+      updateData.status = 'PENDING';
+      updateData.rejectionReason = null;
+      updateData.reviewedAt = null;
+    }
 
     return this.prisma.company.update({
       where: { companyId: payload.sub },

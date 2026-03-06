@@ -7,10 +7,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInterviewDto } from './dto/create-interview.dto';
 import { UpdateInterviewDto } from './dto/update-interview.dto';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class InterviewsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mail: MailService,
+  ) {}
 
   //  COMPANY: Schedule interview for an application
   async create(
@@ -22,7 +26,13 @@ export class InterviewsService {
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },
       include: {
-        job: true,
+        job: {
+          include: {
+            company: {
+              select: { companyName: true },
+            },
+          },
+        },
         user: {
           select: {
             userId: true,
@@ -67,6 +77,16 @@ export class InterviewsService {
       where: { id: applicationId },
       data: { status: 'INTERVIEW_SCHEDULED' },
     });
+
+    await this.mail.sendInterviewScheduled(
+      application.user.email,
+      application.job.jobTitle,
+      application.job.company.companyName,
+      interviewDateTime,
+      dto.interviewType,
+      dto.notes,
+      dto.meetingLink,
+    );
 
     return {
       interview,

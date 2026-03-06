@@ -7,13 +7,15 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { UpdateApplicationDto } from './dto/update-application.dto';
-import { NotificationsService } from '../notifications/notifications.service'; // ← ADD
+import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service'; // ← ADD
 
 @Injectable()
 export class ApplicationsService {
   constructor(
     private prisma: PrismaService,
-    private notifications: NotificationsService, // ← ADD
+    private notifications: NotificationsService,
+    private mail: MailService, // ← ADD
   ) {}
 
   async create(
@@ -235,11 +237,23 @@ export class ApplicationsService {
     applicationId: string,
     dto: UpdateApplicationDto,
   ) {
+    // ← include user.email and job.company.companyName for the shortlist email
     const application = await this.prisma.application.findUnique({
       where: { id: applicationId },
       include: {
-        job: { select: { companyId: true, jobTitle: true } },
-        user: { select: { userId: true } },
+        job: {
+          select: {
+            companyId: true,
+            jobTitle: true,
+            company: { select: { companyName: true } }, // ← ADD
+          },
+        },
+        user: {
+          select: {
+            userId: true,
+            email: true, // ← ADD
+          },
+        },
       },
     });
 
@@ -276,7 +290,7 @@ export class ApplicationsService {
       },
     });
 
-    // ✅ Notify the user — status changed
+    // ✅ In-app notification for all status changes
     const statusMessages: Record<string, string> = {
       REJECTED: `Unfortunately, your application for "${application.job.jobTitle}" was not successful.`,
       INTERVIEW_SCHEDULED: `Congratulations! You have been selected for an interview for "${application.job.jobTitle}".`,
@@ -291,6 +305,23 @@ export class ApplicationsService {
         `Your application status is now: ${dto.status}.`,
       'APPLICATION_STATUS_CHANGED',
     );
+
+    // ✅ Send email ONLY for SHORTLISTED
+    if (dto.status === 'SHORTLISTED') {
+      await this.mail.sendApplicationShortlisted(
+        application.user.email,
+        application.job.jobTitle,
+        application.job.company.companyName,
+      );
+    }
+
+    if (dto.status === 'INTERVIEW_SCHEDULED') {
+      await this.mail.sendInterviewScheduled(
+        application.user.email,
+        application.job.jobTitle,
+        application.job.company.companyName,
+      );
+    }
 
     return updated;
   }
