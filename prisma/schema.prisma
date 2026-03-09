@@ -69,6 +69,10 @@ model User {
 
   passwordHash String @map("password") @db.VarChar(255)
 
+  passwordResetOtpHash       String?   @map("password_reset_otp_hash") @db.VarChar(255)
+  passwordResetOtpExpiresAt  DateTime? @map("password_reset_otp_expires_at") @db.Timestamp(6)
+  passwordResetOtpVerifiedAt DateTime? @map("password_reset_otp_verified_at") @db.Timestamp(6)
+
   image      Bytes?  @map("image")
   profilePic String? @map("profile_pic") @db.VarChar(255)
 

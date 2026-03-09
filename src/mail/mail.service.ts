@@ -17,12 +17,13 @@ export class MailService {
     });
   }
 
-  private async send(to: string, subject: string, html: string) {
+  private async send(to: string, subject: string, html: string, text?: string) {
     await this.transporter.sendMail({
       from: `"${process.env.MAIL_FROM_NAME}" <${process.env.MAIL_FROM_ADDRESS}>`,
       to,
       subject,
       html,
+      text,
     });
   }
 
@@ -229,6 +230,27 @@ export class MailService {
         <p style="margin-top:24px;color:#888;font-size:12px">CareerHub Team</p>
       </div>
       `,
+    );
+  }
+
+  async sendUserPasswordResetOtp(to: string, otp: string, expiresInMinutes = 15) {
+    await this.send(
+      to,
+      'Your OTP for Password Reset - CareerHub',
+      `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f9f9f9;border-radius:8px">
+        <h2 style="color:#111827">Password Reset Request</h2>
+        <p>Hello,</p>
+        <p>Use the OTP below to reset your CareerHub password.</p>
+        <div style="margin:24px 0;padding:16px;text-align:center;background:#111827;border-radius:8px">
+          <span style="font-size:32px;letter-spacing:8px;font-weight:700;color:#ffffff">${otp}</span>
+        </div>
+        <p><strong>This OTP expires in ${expiresInMinutes} minutes.</strong></p>
+        <p>If you did not request this, you can safely ignore this email.</p>
+        <p style="margin-top:24px;color:#888;font-size:12px">CareerHub Team</p>
+      </div>
+      `,
+      `Your password reset OTP is ${otp}. It expires in ${expiresInMinutes} minutes.`,
     );
   }
 }

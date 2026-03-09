@@ -7,9 +7,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { randomInt } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtPayload } from '../common/types/jwt-payload.type';
+import { MailService } from '../mail/mail.service';
 
 import { UserRegisterDto } from './dto/user-register.dto';
 import { UserLoginDto } from './dto/user-login.dto';
@@ -17,6 +19,9 @@ import { CompanyRegisterDto } from './dto/company-register.dto';
 import { CompanyLoginDto } from './dto/company-login.dto';
 import { AdminRegisterDto } from './dto/admin-register.dto';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { RequestPasswordResetOtpDto } from './dto/request-password-reset-otp.dto';
+import { VerifyPasswordResetOtpDto } from './dto/verify-password-reset-otp.dto';
+import { ResetPasswordWithOtpDto } from './dto/reset-password-with-otp.dto';
 
 @Injectable()
 export class AuthService {
@@ -26,6 +31,7 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private mailService: MailService,
   ) {
     this.rounds = Number(this.config.get('BCRYPT_ROUNDS') ?? 10);
   }
@@ -123,6 +129,118 @@ export class AuthService {
         status: user.status, //  frontend can show "pending approval" banner
       },
     };
+  }
+
+  private generateOtpCode() {
+    return randomInt(100000, 1000000).toString();
+  }
+
+  private getPasswordResetOtpTtlMinutes() {
+    return Number(this.config.get('PASSWORD_RESET_OTP_TTL_MINUTES') ?? 15);
+  }
+
+  async sendUserPasswordResetOtp(dto: RequestPasswordResetOtpDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { userId: true, email: true },
+    });
+
+    if (!user) {
+      return {
+        message:
+          'If an account with that email exists, a password reset OTP has been sent.',
+      };
+    }
+
+    const otp = this.generateOtpCode();
+    const otpHash = await bcrypt.hash(otp, this.rounds);
+    const ttlMinutes = this.getPasswordResetOtpTtlMinutes();
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { userId: user.userId },
+      data: {
+        passwordResetOtpHash: otpHash,
+        passwordResetOtpExpiresAt: expiresAt,
+        passwordResetOtpVerifiedAt: null,
+      },
+    });
+
+    await this.mailService.sendUserPasswordResetOtp(user.email, otp, ttlMinutes);
+
+    return {
+      message:
+        'If an account with that email exists, a password reset OTP has been sent.',
+    };
+  }
+
+  async verifyUserPasswordResetOtp(dto: VerifyPasswordResetOtpDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: {
+        userId: true,
+        passwordResetOtpHash: true,
+        passwordResetOtpExpiresAt: true,
+      },
+    });
+
+    if (!user?.passwordResetOtpHash || !user.passwordResetOtpExpiresAt) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    if (user.passwordResetOtpExpiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const isValid = await bcrypt.compare(dto.otp, user.passwordResetOtpHash);
+    if (!isValid) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    await this.prisma.user.update({
+      where: { userId: user.userId },
+      data: { passwordResetOtpVerifiedAt: new Date() },
+    });
+
+    return { message: 'OTP verified successfully' };
+  }
+
+  async resetUserPasswordWithVerifiedOtp(dto: ResetPasswordWithOtpDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: {
+        userId: true,
+        passwordResetOtpHash: true,
+        passwordResetOtpExpiresAt: true,
+        passwordResetOtpVerifiedAt: true,
+      },
+    });
+
+    if (
+      !user?.passwordResetOtpHash ||
+      !user.passwordResetOtpExpiresAt ||
+      !user.passwordResetOtpVerifiedAt
+    ) {
+      throw new BadRequestException('OTP verification is required');
+    }
+
+    if (user.passwordResetOtpExpiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('OTP has expired');
+    }
+
+    const newPasswordHash = await bcrypt.hash(dto.newPassword, this.rounds);
+
+    await this.prisma.user.update({
+      where: { userId: user.userId },
+      data: {
+        passwordHash: newPasswordHash,
+        passwordResetOtpHash: null,
+        passwordResetOtpExpiresAt: null,
+        passwordResetOtpVerifiedAt: null,
+      },
+    });
+
+    return { message: 'Password reset successful' };
   }
 
   // ─────────────────────────────────────────
