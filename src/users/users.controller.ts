@@ -2,10 +2,71 @@ import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserSettingsDto } from './dto/update-user-settings.dto';
 
 @Controller('users')
 export class UsersController {
   constructor(private prisma: PrismaService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/settings')
+  async getMySettings(@Req() req: any) {
+    const payload = req.user;
+
+    if (!payload?.sub || payload?.type !== 'USER') {
+      return null;
+    }
+
+    return this.prisma.user.findUnique({
+      where: { userId: payload.sub },
+      select: {
+        emailNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        darkModeEnabled: true,
+        twoFactorEnabled: true,
+      },
+    });
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/settings')
+  async updateMySettings(@Req() req: any, @Body() dto: UpdateUserSettingsDto) {
+    const payload = req.user;
+
+    if (!payload?.sub || payload?.type !== 'USER') {
+      return null;
+    }
+
+    const updateData: any = {};
+
+    if (dto.emailNotificationsEnabled !== undefined) {
+      updateData.emailNotificationsEnabled = dto.emailNotificationsEnabled;
+    }
+    if (dto.pushNotificationsEnabled !== undefined) {
+      updateData.pushNotificationsEnabled = dto.pushNotificationsEnabled;
+    }
+    if (dto.darkModeEnabled !== undefined) {
+      updateData.darkModeEnabled = dto.darkModeEnabled;
+    }
+    if (dto.twoFactorEnabled !== undefined) {
+      updateData.twoFactorEnabled = dto.twoFactorEnabled;
+      if (!dto.twoFactorEnabled) {
+        updateData.loginOtpHash = null;
+        updateData.loginOtpExpiresAt = null;
+      }
+    }
+
+    return this.prisma.user.update({
+      where: { userId: payload.sub },
+      data: updateData,
+      select: {
+        emailNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        darkModeEnabled: true,
+        twoFactorEnabled: true,
+      },
+    });
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
@@ -32,6 +93,10 @@ export class UsersController {
         dob: true,
         olPassCount: true,
         profilePic: true,
+        emailNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        darkModeEnabled: true,
+        twoFactorEnabled: true,
       },
     });
   }
@@ -81,6 +146,10 @@ export class UsersController {
         dob: true,
         olPassCount: true,
         profilePic: true,
+        emailNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        darkModeEnabled: true,
+        twoFactorEnabled: true,
       },
     });
   }

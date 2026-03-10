@@ -72,6 +72,13 @@ model User {
   passwordResetOtpHash       String?   @map("password_reset_otp_hash") @db.VarChar(255)
   passwordResetOtpExpiresAt  DateTime? @map("password_reset_otp_expires_at") @db.Timestamp(6)
   passwordResetOtpVerifiedAt DateTime? @map("password_reset_otp_verified_at") @db.Timestamp(6)
+  loginOtpHash               String?   @map("login_otp_hash") @db.VarChar(255)
+  loginOtpExpiresAt          DateTime? @map("login_otp_expires_at") @db.Timestamp(6)
+
+  emailNotificationsEnabled Boolean @default(true) @map("email_notifications_enabled")
+  pushNotificationsEnabled  Boolean @default(true) @map("push_notifications_enabled")
+  darkModeEnabled           Boolean @default(false) @map("dark_mode_enabled")
+  twoFactorEnabled          Boolean @default(false) @map("two_factor_enabled")
 
   image      Bytes?  @map("image")
   profilePic String? @map("profile_pic") @db.VarChar(255)
@@ -109,6 +116,13 @@ model Company {
   passwordHash    String   @map("password") @db.VarChar(255)
   url             String?  @db.VarChar(255)
   subscriptionId  Int?     @map("subscription_id")
+  loginOtpHash    String?  @map("login_otp_hash") @db.VarChar(255)
+  loginOtpExpiresAt DateTime? @map("login_otp_expires_at") @db.Timestamp(6)
+
+  emailNotificationsEnabled Boolean @default(true) @map("email_notifications_enabled")
+  pushNotificationsEnabled  Boolean @default(true) @map("push_notifications_enabled")
+  darkModeEnabled           Boolean @default(false) @map("dark_mode_enabled")
+  twoFactorEnabled          Boolean @default(false) @map("two_factor_enabled")
 
   //  Approval fields
   status            ApprovalStatus @default(PENDING)

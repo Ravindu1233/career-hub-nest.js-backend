@@ -5,6 +5,7 @@ import { UserRegisterDto } from './dto/user-register.dto';
 import { RequestPasswordResetOtpDto } from './dto/request-password-reset-otp.dto';
 import { VerifyPasswordResetOtpDto } from './dto/verify-password-reset-otp.dto';
 import { ResetPasswordWithOtpDto } from './dto/reset-password-with-otp.dto';
+import { VerifyUserLoginOtpDto } from './dto/verify-user-login-otp.dto';
 
 @Controller('auth/user')
 export class UserAuthController {
@@ -18,6 +19,11 @@ export class UserAuthController {
   @Post('login')
   login(@Body() dto: UserLoginDto) {
     return this.auth.loginUser(dto);
+  }
+
+  @Post('verify-login-otp')
+  verifyLoginOtp(@Body() dto: VerifyUserLoginOtpDto) {
+    return this.auth.verifyUserLoginOtp(dto);
   }
 
   @Post('send-otp')

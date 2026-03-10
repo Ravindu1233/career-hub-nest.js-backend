@@ -253,4 +253,46 @@ export class MailService {
       `Your password reset OTP is ${otp}. It expires in ${expiresInMinutes} minutes.`,
     );
   }
+
+  async sendUserLoginOtp(to: string, otp: string, expiresInMinutes = 10) {
+    await this.send(
+      to,
+      'Your Login OTP - CareerHub',
+      `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f9f9f9;border-radius:8px">
+        <h2 style="color:#111827">Two-Factor Authentication</h2>
+        <p>Hello,</p>
+        <p>Use this OTP to complete your CareerHub login.</p>
+        <div style="margin:24px 0;padding:16px;text-align:center;background:#111827;border-radius:8px">
+          <span style="font-size:32px;letter-spacing:8px;font-weight:700;color:#ffffff">${otp}</span>
+        </div>
+        <p><strong>This OTP expires in ${expiresInMinutes} minutes.</strong></p>
+        <p>If this wasn't you, change your password immediately.</p>
+        <p style="margin-top:24px;color:#888;font-size:12px">CareerHub Team</p>
+      </div>
+      `,
+      `Your CareerHub login OTP is ${otp}. It expires in ${expiresInMinutes} minutes.`,
+    );
+  }
+
+  async sendCompanyLoginOtp(to: string, otp: string, expiresInMinutes = 10) {
+    await this.send(
+      to,
+      'Your Company Login OTP - CareerHub',
+      `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f9f9f9;border-radius:8px">
+        <h2 style="color:#111827">Company Two-Factor Authentication</h2>
+        <p>Hello,</p>
+        <p>Use this OTP to complete your CareerHub company login.</p>
+        <div style="margin:24px 0;padding:16px;text-align:center;background:#111827;border-radius:8px">
+          <span style="font-size:32px;letter-spacing:8px;font-weight:700;color:#ffffff">${otp}</span>
+        </div>
+        <p><strong>This OTP expires in ${expiresInMinutes} minutes.</strong></p>
+        <p>If this wasn't you, change your password immediately.</p>
+        <p style="margin-top:24px;color:#888;font-size:12px">CareerHub Team</p>
+      </div>
+      `,
+      `Your CareerHub company login OTP is ${otp}. It expires in ${expiresInMinutes} minutes.`,
+    );
+  }
 }

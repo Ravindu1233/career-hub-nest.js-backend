@@ -16,10 +16,81 @@ import {
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { UpdateCompanySettingsDto } from './dto/update-company-settings.dto';
 
 @Controller('companies')
 export class CompanyController {
   constructor(private prisma: PrismaService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me/settings')
+  async getMySettings(@Req() req: any) {
+    const payload = req.user;
+
+    if (!payload) throw new UnauthorizedException('Missing auth payload');
+    if (!payload.sub) throw new UnauthorizedException('Invalid token payload');
+    if (payload.type !== 'COMPANY')
+      throw new ForbiddenException('Only COMPANY can access this route');
+
+    const settings = await this.prisma.company.findUnique({
+      where: { companyId: payload.sub },
+      select: {
+        emailNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        darkModeEnabled: true,
+        twoFactorEnabled: true,
+      },
+    });
+
+    if (!settings) throw new NotFoundException('Company not found');
+    return settings;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('me/settings')
+  async updateMySettings(
+    @Req() req: any,
+    @Body() dto: UpdateCompanySettingsDto,
+  ) {
+    const payload = req.user;
+
+    if (!payload) throw new UnauthorizedException('Missing auth payload');
+    if (!payload.sub) throw new UnauthorizedException('Invalid token payload');
+    if (payload.type !== 'COMPANY')
+      throw new ForbiddenException('Only COMPANY can access this route');
+
+    const updateData: any = {};
+
+    if (dto.emailNotificationsEnabled !== undefined) {
+      updateData.emailNotificationsEnabled = dto.emailNotificationsEnabled;
+    }
+    if (dto.pushNotificationsEnabled !== undefined) {
+      updateData.pushNotificationsEnabled = dto.pushNotificationsEnabled;
+    }
+    if (dto.darkModeEnabled !== undefined) {
+      updateData.darkModeEnabled = dto.darkModeEnabled;
+    }
+    if (dto.twoFactorEnabled !== undefined) {
+      updateData.twoFactorEnabled = dto.twoFactorEnabled;
+      if (!dto.twoFactorEnabled) {
+        updateData.loginOtpHash = null;
+        updateData.loginOtpExpiresAt = null;
+      }
+    }
+
+    const settings = await this.prisma.company.update({
+      where: { companyId: payload.sub },
+      data: updateData,
+      select: {
+        emailNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        darkModeEnabled: true,
+        twoFactorEnabled: true,
+      },
+    });
+
+    return settings;
+  }
 
   /**
    * PUBLIC: list all APPROVED companies only
@@ -110,6 +181,10 @@ export class CompanyController {
         profilePic: true,
         status: true,
         rejectionReason: true,
+        emailNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        darkModeEnabled: true,
+        twoFactorEnabled: true,
       },
     });
 
@@ -218,6 +293,10 @@ export class CompanyController {
         profilePic: true,
         status: true,
         rejectionReason: true,
+        emailNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+        darkModeEnabled: true,
+        twoFactorEnabled: true,
       },
     });
   }

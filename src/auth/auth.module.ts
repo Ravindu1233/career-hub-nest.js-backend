@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { UserAuthController } from './auth.controller.user';
 import { CompanyAuthController } from './auth.controller.company';
 import { AdminAuthController } from './auth.controller.admin';
+import { AuthController } from './auth.controller';
 
 @Module({
   imports: [
@@ -24,7 +25,12 @@ import { AdminAuthController } from './auth.controller.admin';
       },
     }),
   ],
-  controllers: [UserAuthController, CompanyAuthController, AdminAuthController],
+  controllers: [
+    AuthController,
+    UserAuthController,
+    CompanyAuthController,
+    AdminAuthController,
+  ],
   providers: [AuthService, JwtStrategy],
   exports: [JwtModule],
 })
